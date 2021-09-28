@@ -17,23 +17,28 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
-mod errors;
-mod model;
+mod configuration;
 
-use env_logger::Env;
-use log::{error, info};
+use crate::{errors::ModelError, model::configuration::Config};
+use log::{debug, info};
+use std::path::Path;
 
-fn main() {
-    let logger_env = Env::new().filter_or("PATS_LOG_LEVEL", "info");
-    env_logger::Builder::from_env(logger_env)
-        .format_timestamp_millis()
-        .init();
+#[cfg(feature = "double_precision")]
+type Float = f64;
 
-    match model::main() {
-        Ok(out_name) => info!(
-            "Model finished successfully. Check the output file {}",
-            out_name
-        ),
-        Err(err) => error!("Model failed with error: {}", err),
-    }
+#[cfg(not(feature = "double_precision"))]
+type Float = f32;
+
+pub fn main() -> Result<String, ModelError> {
+    info!("Model computation started");
+
+    debug!("Reading configuration from config.yaml");
+    let global_config = Config::new_from_file(Path::new("config.yaml"))?;
+
+    debug!("Setting up ThreadPool");
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(global_config.threads as usize)
+        .build_global()?;
+
+    Ok(" ".to_string())
 }

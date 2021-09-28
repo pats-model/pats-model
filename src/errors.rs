@@ -17,23 +17,25 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
-mod errors;
-mod model;
+use thiserror::Error;
 
-use env_logger::Env;
-use log::{error, info};
+#[derive(Error, Debug)]
+pub enum ModelError {
+    #[error("Error while reading config.yaml: {0}")]
+    Config(#[from] ConfigError),
 
-fn main() {
-    let logger_env = Env::new().filter_or("PATS_LOG_LEVEL", "info");
-    env_logger::Builder::from_env(logger_env)
-        .format_timestamp_millis()
-        .init();
+    #[error("Error while creating ThreadPool: {0}")]
+    ThreadPool(#[from] rayon::ThreadPoolBuildError)
+}   
 
-    match model::main() {
-        Ok(out_name) => info!(
-            "Model finished successfully. Check the output file {}",
-            out_name
-        ),
-        Err(err) => error!("Model failed with error: {}", err),
-    }
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error("Cannot open config.yaml: {0}")]
+    CantOpenFile(#[from] std::io::Error),
+
+    #[error("Cannot deserialize config.yaml: {0}")]
+    CantDeserialize(#[from] serde_yaml::Error),
+
+    #[error("Configuration component is out of bounds {0}")]
+    OutOfBounds(&'static str),
 }

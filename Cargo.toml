@@ -27,3 +27,14 @@ license = "GPL-3.0"
 exclude = [".github/*", ".vscode/*", ".idea/*", "data/*"]
 
 [dependencies]
+serde = { version = "1.0.130", features = ["derive"] }
+serde_yaml = "0.8.21"
+ndarray = "0.15.3"
+rayon = "1.5.1"
+thiserror = "1.0.29"
+log = "0.4.14"
+env_logger = "0.9.0"
+sysinfo = "0.20.3"
+
+[features]
+double_precision = []
