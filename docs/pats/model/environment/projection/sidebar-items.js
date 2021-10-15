@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["big_f",""],["m",""],["n",""],["phi_for_inverse","To compute the phi for inverse projection truncated infinite series is used with optimisations for reducing trigonometric functions calls."],["rho",""],["t",""]],"struct":[["LambertConicConformal","Front-facing struct of Lambert Conformal Conic projection."]]});

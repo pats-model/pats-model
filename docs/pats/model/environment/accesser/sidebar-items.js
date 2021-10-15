@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["EnvFields","Enum containing fields on pressure levels that can be requested."],["SurfaceFields","Enum containing surface fields that can be requested."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["NS_C_EARTH","WGS84 ellipsoid circumference along meridian"],["WE_C_EARTH","WGS84 ellipsoid circumference along equator"],["WGS84_A","WGS84 ellipsoid semi-major axis"],["WGS84_B","WGS84 ellipsoid semi-minor axis"],["WGS84_E","WGS84 ellipsoid eccentricity"],["WGS84_H","WGS84 ellipsoid Ramanujan’s $h$ parameter"]]});

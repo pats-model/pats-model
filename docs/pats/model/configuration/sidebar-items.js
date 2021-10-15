@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Config",""],["Domain",""]]});
+initSidebarItems({"struct":[["Config","Main config structure representing the fields in configuration file."],["DateTime","Fields with information about time used by model."],["Domain","Fields with model domain information."],["Input","Fields with information about model input data for providing boundary conditions."],["Resources","(Optional) Fields with information about resources available for model."]]});
