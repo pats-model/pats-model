@@ -1,13 +1,21 @@
 --- # PATS configuration
+
+# For more information how to set up this config file
+# check the configuration module documentaiton
+
 domain:
-  lat_0: 50.629609  # Latitude of SW corner of domain
-  lon_0: 17.425667  # Longitude of SW corner of domain
-  spacing: 1000.0   # grid spacing in meters
-  ni: 100           # number of gridpoints in w-e axis 
-  nj: 100           # number of gridpoints in s-n axis
-timestep: 1.0       # model timestep in seconds 
-level_type: "model" # type of level to be read from data files
-data_files:         # list of files with environment data
-  - "./data/era5_model.grib"
-threads: 16         # number of threads the model should use
-memory: 8196        # memory available for model in MB
+  ref_lat: 49.00                # Latitude of SW corner of domain
+  ref_lon: 14.00                # Longitude of SW corner of domain
+  spacing: 2500.0               # grid spacing in meters
+  shape: [300, 270]             # lon-lat shape of domain (in number of model gridpoints)
+datetime:
+  start: "2021-06-24T06:00:00"
+  timestep: 1.0                 # model timestep in seconds
+input:
+  level_type: "isobaricInhPa"   # type of level to be read from data files
+  data_files:                   # list of files with environment and surface data
+    - "./data/era5_pl.grib"
+    - "./data/era5_surface.grib"
+resources:    
+  threads: 8                    # number of threads the model should use
+  memory: 8196                  # memory cap for model in MB

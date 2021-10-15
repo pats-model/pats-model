@@ -15,7 +15,7 @@ PATS builds upon lessons learned when developing world's most popular numerical 
 
 ### Modern programming language
 
-PATS is written entirely in [Rust](https://www.rust-lang.org/), a modern programming language comprising great performance comparable to C and C++, type and memory safety and fearless concurrency. Using Rust allows for easy model development now and painless maintenance in the future. 
+PATS is written entirely in [Rust](https://www.rust-lang.org/), a modern programming language comprising great performance comparable to C and C++, type and memory safety and fearless concurrency. Using Rust allows for easy model development now and painless maintenance in the future.
 
 ### Detailed documentation
 
@@ -29,7 +29,7 @@ PATS uses [`.yaml`](https://en.wikipedia.org/wiki/YAML) file for model configura
 
 Use of Rust allows for an easy error handling even in concurrent applications, and segmentation faults are extremly rare. Even if something goes terribly wrong, the Rust will [panic](https://doc.rust-lang.org/book/ch09-01-unrecoverable-errors-with-panic.html) providing at least some error information. All other errors will be displayed with details in `stdout`, for example:
 
-```
+```text
 [2021-09-28T12:25:05.475Z ERROR pats] Model failed with error: Error while reading config.yaml: Cannot deserialize config.yaml: domain.ni: invalid type: floating point `100.2`, expected u16 at line 6 column 7
 ```
 
@@ -47,4 +47,4 @@ PATS concurrency design allows for the model to not stop entirely when writing t
 
 ### Conditional compilation of model schemes
 
-Most of numerical models compile all available features and schemes. That results in long compilation times, making debugging difficult, and performance overhead. PATS uses conditional compilation to compile only selected schemes. When the model is used operationally it has best possible performance, and when tested it can be quickly recompiled. 
+Most of numerical models compile all available features and schemes. That results in long compilation times, making debugging difficult, and performance overhead. PATS uses conditional compilation to compile only selected schemes. When the model is used operationally it has best possible performance, and when tested it can be quickly recompiled.

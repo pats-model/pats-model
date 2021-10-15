@@ -31,10 +31,18 @@ serde = { version = "1.0.130", features = ["derive"] }
 serde_yaml = "0.8.21"
 ndarray = "0.15.3"
 rayon = "1.5.1"
-thiserror = "1.0.29"
+thiserror = "1.0.30"
 log = "0.4.14"
 env_logger = "0.9.0"
-sysinfo = "0.20.3"
+chrono = { version = "0.4.19", features = ["serde"] }
+rustc-hash = "1.1.0"
+eccodes = "0.5.4"
+floccus = "0.2.2"
+nalgebra = "0.29.0"
+cap = "0.1.0"
 
 [features]
-double_precision = []
+double_precision = ["floccus/double_precision"]
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "./src/html/docs-header.html" ]

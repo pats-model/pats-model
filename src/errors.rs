@@ -17,17 +17,26 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
+//! Module with error definitions for all
+//! struct and function in the model.
+
 use thiserror::Error;
 
+/// General errors gathering all errors that can be
+/// returned by the model.
 #[derive(Error, Debug)]
 pub enum ModelError {
     #[error("Error while reading config.yaml: {0}")]
     Config(#[from] ConfigError),
 
     #[error("Error while creating ThreadPool: {0}")]
-    ThreadPool(#[from] rayon::ThreadPoolBuildError)
-}   
+    ThreadPool(#[from] rayon::ThreadPoolBuildError),
 
+    #[error("Error occured in Environment struct: {0}")]
+    Environment(#[from] EnvironmentError),
+}
+
+/// Errors related to reading and handling the model configuration.
 #[derive(Error, Debug)]
 pub enum ConfigError {
     #[error("Cannot open config.yaml: {0}")]
@@ -36,6 +45,65 @@ pub enum ConfigError {
     #[error("Cannot deserialize config.yaml: {0}")]
     CantDeserialize(#[from] serde_yaml::Error),
 
-    #[error("Configuration component is out of bounds {0}")]
+    #[error("Configuration component is out of bounds: {0}")]
     OutOfBounds(&'static str),
+
+    #[error("Error while reading GRIB input: {0}")]
+    CannotReadInput(#[from] InputError),
+}
+
+/// Errors related to reading and handling
+/// boundary conditions (environment data).
+#[derive(Error, Debug)]
+pub enum EnvironmentError {
+    #[error("Error while handling projection ({0}), please check your domain or report it on Github")]
+    ProjectionError(#[from] ProjectionError),
+
+    #[error("Error of GRIB input handling: {0}")]
+    GRIBInput(#[from] InputError),
+
+    #[error("Could not find the value using bisection: {0}")]
+    SearchUnable(#[from] SearchError),
+}
+
+/// Errors related to reading input GRIB files.
+#[derive(Error, Debug)]
+pub enum InputError {
+    #[error("Error while reading the GRIB file: {0}")]
+    CannotReadGrib(#[from] eccodes::errors::CodesError),
+
+    #[error("Error while parsing string to datetime: {0}")]
+    CannotParseDatetime(#[from] chrono::format::ParseError),
+
+    #[error("The type of key {0} is incorrect")]
+    IncorrectKeyType(&'static str),
+
+    #[error("Provided input data is not sufficient to run the model, please check the documentation: {0}")]
+    DataNotSufficient(&'static str),
+
+    #[error("Values shape mismatch in GRIB, please check your input data: {0}")]
+    IncorrectShape(#[from] ndarray::ShapeError),
+}
+
+/// Errors related to searching datasets with bisection.
+#[derive(Error, Debug)]
+pub enum SearchError {
+    #[error("Provided array is empty")]
+    EmptyArray,
+
+    #[error("Provided target is out of array bounds")]
+    OutOfBounds,
+}
+
+/// Errors related to parcel simulation.
+#[derive(Error, Debug)]
+pub enum ParcelError {
+
+}
+
+/// Errors realted to geographic projection.
+#[derive(Error, Debug)]
+pub enum ProjectionError {
+    #[error("Incorrect projection parameters: {0}")]
+    IncorrectParams(&'static str),
 }
