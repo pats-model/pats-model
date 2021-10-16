@@ -40,6 +40,18 @@ use rustc_hash::FxHashSet;
 /// Convenience type to store lat-lon coordinates.
 type LonLat<T> = (T, T);
 
+/// Enum containing fields on pressure
+/// levels that can be requested.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum EnvFields {
+    Temperature,
+    Pressure,
+    VirtualTemperature,
+    SpecificHumidity,
+    UWind,
+    VWind,
+}
+
 /// Struct for storing environmental variables
 /// from levels above ground (currently pressure levels).
 ///
@@ -73,6 +85,21 @@ impl Fields {
             lats: Array2::default((0, 0)),
         }
     }
+}
+
+/// Enum containing surface fields
+/// that can be requested.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum SurfaceFields {
+    Temperature,
+    Dewpoint,
+    Pressure,
+    Height,
+    MixingRatio,
+    SaturationMixingRatio,
+    VirtualTemperature,
+    UWind,
+    VWind,
 }
 
 /// Struct for storing environmental variables at/near surface.

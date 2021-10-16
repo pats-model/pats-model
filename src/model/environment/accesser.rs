@@ -17,48 +17,21 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
-//! Module with methods for accessing the 
-//! environment and surface boundary 
+//! Module with methods for accessing the
+//! environment and surface boundary
 //! conditions data.
 
 use ndarray::s;
 
 use crate::{
-    errors::EnvironmentError,
+    errors::{EnvironmentError, SearchError},
     model::environment::interpolation::{
         interpolate_bilinear, interpolate_tilinear, Point2D, Point3D,
     },
     Float,
 };
 
-use super::{bisection, Environment};
-
-/// Enum containing surface fields
-/// that can be requested.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum SurfaceFields {
-    Temperature,
-    Dewpoint,
-    Pressure,
-    Height,
-    MixingRatio,
-    SaturationMixingRatio,
-    VirtualTemperature,
-    UWind,
-    VWind,
-}
-
-/// Enum containing fields on pressure
-/// levels that can be requested.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum EnvFields {
-    Temperature,
-    Pressure,
-    VirtualTemperature,
-    SpecificHumidity,
-    UWind,
-    VWind,
-}
+use super::{EnvFields, Environment, SurfaceFields, bisection};
 
 impl Environment {
     /// Function to get interpolated value of given
@@ -176,7 +149,26 @@ impl Environment {
                     .as_slice()
                     .unwrap(),
                 &z,
-            )?;
+            )
+            .or_else(|err| {
+                // when searched height is below the lowest level
+                // we set lowest point to 0-level for extrapolation
+                // in all other cases error is returned
+
+                match err {
+                    SearchError::OutOfBounds => {}
+                    _ => {
+                        return Err(err);
+                    }
+                }
+
+                // height decreases with height
+                if &z > &self.fields.height[[0, *x_index, *y_index]] {
+                    return Ok(0);
+                }
+
+                return Err(err);
+            })?;
 
             let (lon, lat) = (
                 self.fields.lons[[*x_index, *y_index]],
@@ -199,6 +191,8 @@ impl Environment {
                 z: self.fields.height[[z_index + 1, *x_index, *y_index]],
                 value: field[[z_index + 1, *x_index, *y_index]],
             };
+
+            todo!("Need to account for value below the lowest level");
         }
 
         let result_val = interpolate_tilinear(x, y, z, ref_points);

@@ -6,8 +6,8 @@
 domain:
   ref_lat: 49.00                # Latitude of SW corner of domain
   ref_lon: 14.00                # Longitude of SW corner of domain
-  spacing: 2500.0               # grid spacing in meters
-  shape: [300, 270]             # lon-lat shape of domain (in number of model gridpoints)
+  spacing: 1000.0               # grid spacing in meters
+  shape: [10, 10]             # lon-lat shape of domain (in number of model gridpoints)
 datetime:
   start: "2021-06-24T06:00:00"
   timestep: 1.0                 # model timestep in seconds

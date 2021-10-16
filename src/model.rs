@@ -104,14 +104,16 @@ pub fn main() -> Result<String, ModelError> {
         let environment = Arc::clone(&environment);
 
         model_core.threadpool.spawn(move || {
-            tx.send(parcel::deploy(parcel_coords, config, environment))
+            tx.send(parcel::deploy(parcel_coords, 
+                &config, 
+                &environment))
                 .unwrap();
         });
     }
 
     for _ in 0..parcels_count {
         rx.recv().expect("Receiving parcel result failed").unwrap_or_else(|err| {
-            error!("Parcel ascent stopped with the error, check the details and rerun the model: {}", err);
+            error!("Could not deploy the parcel due to an error, check the details and rerun the model: {}", err);
         });
     }
 

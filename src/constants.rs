@@ -45,7 +45,7 @@ pub const WGS84_H: Float =
 ///WGS84 ellipsoid circumference along meridian
 ///
 ///Computed with first 6 terms of infinite series:
-/// $$ C = \pi(a+b)\sum_{n=0}^{\infty}\binom{0.5}{n}h^n $$
+/// $$ C = \pi(a+b)\sum_{n=0}^{+\infty}\binom{0.5}{n}h^n $$
 pub const NS_C_EARTH: Float = PI
     * (WGS84_A + WGS84_B)
     * (1.0
