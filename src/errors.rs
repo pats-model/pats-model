@@ -34,6 +34,9 @@ pub enum ModelError {
 
     #[error("Error occured in Environment struct: {0}")]
     Environment(#[from] EnvironmentError),
+
+    #[error("Error while doing thermodynamic computation, check your input data: {0}")]
+    Floc(#[from] floccus::error_wrapper::InputError)
 }
 
 /// Errors related to reading and handling the model configuration.
