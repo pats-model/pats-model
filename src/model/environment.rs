@@ -95,9 +95,6 @@ pub enum SurfaceFields {
     Dewpoint,
     Pressure,
     Height,
-    MixingRatio,
-    SaturationMixingRatio,
-    VirtualTemperature,
     UWind,
     VWind,
 }
@@ -115,9 +112,6 @@ pub struct Surface {
     height: Array2<Float>,
     u_wind: Array2<Float>,
     v_wind: Array2<Float>,
-    virtual_temp: Array2<Float>,
-    mixing_ratio: Array2<Float>,
-    sat_mixing_ratio: Array2<Float>,
     lons: Array2<Float>,
     lats: Array2<Float>,
 }
@@ -131,9 +125,6 @@ impl Surface {
             height: Array2::default((0, 0)),
             u_wind: Array2::default((0, 0)),
             v_wind: Array2::default((0, 0)),
-            virtual_temp: Array2::default((0, 0)),
-            mixing_ratio: Array2::default((0, 0)),
-            sat_mixing_ratio: Array2::default((0, 0)),
             lons: Array2::default((0, 0)),
             lats: Array2::default((0, 0)),
         }

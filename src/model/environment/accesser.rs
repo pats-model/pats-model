@@ -31,7 +31,7 @@ use crate::{
     Float,
 };
 
-use super::{EnvFields, Environment, SurfaceFields, bisection};
+use super::{bisection, EnvFields, Environment, SurfaceFields};
 
 impl Environment {
     /// Function to get interpolated value of given
@@ -63,9 +63,6 @@ impl Environment {
             SurfaceFields::Dewpoint => self.surface.dewpoint.view(),
             SurfaceFields::Pressure => self.surface.pressure.view(),
             SurfaceFields::Height => self.surface.height.view(),
-            SurfaceFields::MixingRatio => self.surface.mixing_ratio.view(),
-            SurfaceFields::SaturationMixingRatio => self.surface.sat_mixing_ratio.view(),
-            SurfaceFields::VirtualTemperature => self.surface.virtual_temp.view(),
             SurfaceFields::UWind => self.surface.u_wind.view(),
             SurfaceFields::VWind => self.surface.v_wind.view(),
         };

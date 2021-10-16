@@ -36,15 +36,15 @@ use eccodes::{
 };
 use floccus::constants::G;
 use log::debug;
-use ndarray::{Array, Array2, Axis, azip, concatenate, s, stack};
+use ndarray::{concatenate, s, stack, Array, Array2, Axis};
 
 impl Environment {
     /// Function to read surface data from GRIB input
     /// in extent covering domain and margins and buffer it.
-    /// 
+    ///
     /// Data from GRIB files can only be read in a whole
     /// GRIB domain, therefore it needs to be truncated.
-    /// 
+    ///
     /// Some useful surface variables are not provided by
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_surface(
@@ -62,7 +62,6 @@ impl Environment {
             find_extent_edge_indices(&distinct_lonlats, west_south, east_north);
 
         self.assign_raw_surfaces(edge_lons, edge_lats)?;
-        self.compute_intermediate_surfaces();
         self.cast_lonlat_surface_coords(&distinct_lonlats, edge_lons, edge_lats);
 
         Ok(())
@@ -140,39 +139,6 @@ impl Environment {
         let result_data = result_data.mapv(|v| v as Float);
 
         Ok(result_data)
-    }
-
-    /// Computes and buffers additional surface data from
-    /// values previously read from the GRIB file.
-    fn compute_intermediate_surfaces(&mut self) {
-        let mut mixing_ratio: Array2<Float> = Array2::zeros(self.surface.temperature.raw_dim());
-        let mut sat_mixing_ratio: Array2<Float> = Array2::zeros(self.surface.temperature.raw_dim());
-        let mut virtual_temperature: Array2<Float> =
-            Array2::zeros(self.surface.temperature.raw_dim());
-
-        azip!((r in &mut mixing_ratio, 
-            &p in &self.surface.pressure, 
-            &d in &self.surface.dewpoint) 
-            *r = floccus::mixing_ratio::accuracy1(d, p)
-            .expect("Error while computing mixing ratio: variable out of reasonable bounds"));
-
-        self.surface.mixing_ratio = mixing_ratio;
-
-        azip!((rs in &mut sat_mixing_ratio, 
-            &p in &self.surface.pressure, 
-            &t in &self.surface.temperature) 
-            *rs = floccus::mixing_ratio::accuracy1(t, p)
-            .expect("Error while computing saturation mixing ratio: variable out of reasonable bounds"));
-
-        self.surface.sat_mixing_ratio = sat_mixing_ratio;
-
-        azip!((tv in &mut virtual_temperature, 
-            &t in &self.surface.temperature, 
-            &r in &self.surface.mixing_ratio) 
-            *tv = floccus::virtual_temperature::general1(t, r)
-            .expect("Error while computing virtual temperature: variable out of reasonable bounds"));
-
-        self.surface.virtual_temp = virtual_temperature;
     }
 
     /// Buffers longitudes and latitudes of surface data gridpoints.
