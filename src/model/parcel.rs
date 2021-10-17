@@ -21,15 +21,18 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-use std::sync::Arc;
+mod runge_kutta;
+
+use runge_kutta::RungeKuttaDynamics;
+use std::{
+    ops::{Add, AddAssign, Mul},
+    sync::Arc,
+};
 
 use chrono::NaiveDateTime;
 use floccus::{mixing_ratio, virtual_temperature};
 
-use crate::{
-    errors::{ModelError, ParcelError},
-    Float,
-};
+use crate::{errors::ModelError, Float};
 
 use super::{
     configuration::Config,
@@ -39,12 +42,67 @@ use super::{
     },
 };
 
-type Vec3<T> = (T, T, T);
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+struct Vec3 {
+    x: Float,
+    y: Float,
+    z: Float,
+}
 
+impl Add for Vec3 {
+    type Output = Vec3;
+
+    fn add(self, rhs: Vec3) -> Self::Output {
+        Vec3 {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl AddAssign for Vec3 {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Self {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        };
+    }
+}
+
+impl Mul<Vec3> for Float {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Vec3 {
+            x: self * rhs.x,
+            y: self * rhs.y,
+            z: self * rhs.z,
+        }
+    }
+}
+
+impl Mul<Float> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, rhs: Float) -> Self::Output {
+        Vec3 {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 struct ParcelState {
     datetime: NaiveDateTime,
-    position: Vec3<Float>,
-    velocity: Vec3<Float>,
+    position: Vec3,
+    velocity: Vec3,
     pres: Float,
     temp: Float,
     mxng_rto: Float,
@@ -60,6 +118,21 @@ pub fn deploy(
     config: &Arc<Config>,
     environment: &Arc<Environment>,
 ) -> Result<(), ModelError> {
+    let initial_state = prepare_parcel(start_coords, config, environment)?;
+
+    let mut dynamic_scheme =
+        RungeKuttaDynamics::new(initial_state, config.datetime.timestep, environment);
+
+    let parcel_result = dynamic_scheme.run_simulation();
+
+    Ok(())
+}
+
+fn prepare_parcel(
+    start_coords: (Float, Float),
+    config: &Arc<Config>,
+    environment: &Arc<Environment>,
+) -> Result<ParcelState, ModelError> {
     // currently, parcel deployed directly from surface
     // but then (configurable) mixed parcel
     let initial_time = config.datetime.start;
@@ -83,25 +156,22 @@ pub fn deploy(
     let satr_mxng_rto = mixing_ratio::accuracy1(temp, pres)?;
     let vrt_temp = virtual_temperature::general1(temp, mxng_rto)?;
 
-    let initial_state = ParcelState {
+    Ok(ParcelState {
         datetime: initial_time,
-        position: (x_pos, y_pos, z_pos),
-        velocity: (x_vel, y_vel, z_vel),
+        position: Vec3 {
+            x: x_pos,
+            y: y_pos,
+            z: z_pos,
+        },
+        velocity: Vec3 {
+            x: x_vel,
+            y: y_vel,
+            z: z_vel,
+        },
         pres,
         temp,
         mxng_rto,
         satr_mxng_rto,
         vrt_temp,
-    };
-
-    let parcel_result = run_simulation(initial_state, config.datetime.timestep);
-
-    Ok(())
-}
-
-fn run_simulation(
-    initial_state: ParcelState,
-    timestep: Float,
-) -> (Vec<ParcelState>, Result<(), ParcelError>) {
-    (vec![], Ok(()))
+    })
 }

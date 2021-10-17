@@ -36,7 +36,7 @@ pub enum ModelError {
     Environment(#[from] EnvironmentError),
 
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
-    Floc(#[from] floccus::error_wrapper::InputError)
+    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
 }
 
 /// Errors related to reading and handling the model configuration.
@@ -59,7 +59,9 @@ pub enum ConfigError {
 /// boundary conditions (environment data).
 #[derive(Error, Debug)]
 pub enum EnvironmentError {
-    #[error("Error while handling projection ({0}), please check your domain or report it on Github")]
+    #[error(
+        "Error while handling projection ({0}), please check your domain or report it on Github"
+    )]
     ProjectionError(#[from] ProjectionError),
 
     #[error("Error of GRIB input handling: {0}")]
@@ -101,7 +103,11 @@ pub enum SearchError {
 /// Errors related to parcel simulation.
 #[derive(Error, Debug)]
 pub enum ParcelError {
+    #[error("Error while doing thermodynamic computation, check your input data: {0}")]
+    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
 
+    #[error("Error while accessing environmental variable: {0}")]
+    EnvironmentAccess(#[from] EnvironmentError),
 }
 
 /// Errors realted to geographic projection.
