@@ -53,7 +53,7 @@ impl Environment {
         east_north: LonLat<Float>,
     ) -> Result<(), EnvironmentError> {
         debug!(
-            "Buffering surface fields in extent: N{} S{} E{} W{}",
+            "Buffering surface fields in extent: N{:.2} S{:.2} E{:.2} W{:.2}",
             east_north.1, west_south.1, east_north.0, west_south.0
         );
 

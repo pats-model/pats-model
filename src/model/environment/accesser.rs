@@ -51,7 +51,7 @@ impl Environment {
 
         let south_lat_index = bisection::find_left_closest(
             self.surface
-                .lons
+                .lats
                 .slice(s![west_lon_index, ..])
                 .as_slice()
                 .unwrap(),
@@ -113,7 +113,7 @@ impl Environment {
 
         let south_lat_index = bisection::find_left_closest(
             self.fields
-                .lons
+                .lats
                 .slice(s![west_lon_index, ..])
                 .as_slice()
                 .unwrap(),
@@ -139,33 +139,32 @@ impl Environment {
         let mut ref_points = [Point3D::default(); 8];
 
         for (i, (x_index, y_index)) in horizontal_points.iter().enumerate() {
-            let z_index = bisection::find_left_closest(
-                self.fields
-                    .height
-                    .slice(s![.., *x_index, *y_index])
-                    .as_slice()
-                    .unwrap(),
-                &z,
-            )
-            .or_else(|err| {
-                // when searched height is below the lowest level
-                // we set lowest point to 0-level for extrapolation
-                // in all other cases error is returned
+            let z_index_search_array = self
+                .fields
+                .height
+                .slice(s![.., *x_index, *y_index])
+                .to_vec();
 
-                match err {
-                    SearchError::OutOfBounds => {}
-                    _ => {
-                        return Err(err);
+            let z_index =
+                bisection::find_left_closest(&z_index_search_array, &z).or_else(|err| {
+                    // when searched height is below the lowest level
+                    // we set lowest point to 0-level for extrapolation
+                    // in all other cases error is returned
+
+                    match err {
+                        SearchError::OutOfBounds => {}
+                        _ => {
+                            return Err(err);
+                        }
                     }
-                }
 
-                // height decreases with height
-                if &z > &self.fields.height[[0, *x_index, *y_index]] {
-                    return Ok(0);
-                }
+                    // height decreases with height
+                    if &z > &self.fields.height[[0, *x_index, *y_index]] {
+                        return Ok(0);
+                    }
 
-                return Err(err);
-            })?;
+                    return Err(err);
+                })?;
 
             let (lon, lat) = (
                 self.fields.lons[[*x_index, *y_index]],
@@ -182,14 +181,12 @@ impl Environment {
             };
 
             // upper point
-            ref_points[i] = Point3D {
+            ref_points[i + 4] = Point3D {
                 x,
                 y,
                 z: self.fields.height[[z_index + 1, *x_index, *y_index]],
                 value: field[[z_index + 1, *x_index, *y_index]],
             };
-
-            todo!("Need to account for value below the lowest level");
         }
 
         let result_val = interpolate_tilinear(x, y, z, ref_points);

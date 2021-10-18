@@ -192,7 +192,7 @@ fn prepare_parcel(
 
 fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap());
-    let out_path = format!("./output/{}.out", parcel_id);
+    let out_path = format!("./output/{}.csv", parcel_id);
     let out_path = Path::new(&out_path);
 
     let mut out_file = csv::Writer::from_path(out_path)?;
