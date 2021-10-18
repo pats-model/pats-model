@@ -41,9 +41,12 @@ use super::{
     configuration::Config,
     environment::{
         Environment,
-        SurfaceFields::{Dewpoint, Height, Pressure, Temperature, UWind, VWind},
+        SurfaceFields::{Dewpoint, Height, Pressure, Temperature},
     },
 };
+
+#[cfg(feature = "3d")]
+use super::environment::SurfaceFields::{UWind, VWind};
 
 /// (TODO: What it is)
 ///
@@ -155,13 +158,19 @@ fn prepare_parcel(
     let y_pos = start_coords.1;
     let z_pos = environment.get_surface_value(x_pos, y_pos, Height)?;
 
+    #[cfg(feature = "3d")]
+    let x_vel = environment.get_surface_value(x_pos, y_pos, UWind)?;
+    #[cfg(feature = "3d")]
+    let y_vel = environment.get_surface_value(x_pos, y_pos, VWind)?;
+
+    #[cfg(not(feature = "3d"))]
+    let x_vel = 0.0;
+    #[cfg(not(feature = "3d"))]
+    let y_vel = 0.0;
+
     // currently, constant initial vertical velocity (0.2 m/s)
     // but then lifiting can be taken into account
     // also as initial acceleration
-    // let x_vel = environment.get_surface_value(x_pos, y_pos, UWind)?;
-    // let y_vel = environment.get_surface_value(x_pos, y_pos, VWind)?;
-    let x_vel = 0.0;
-    let y_vel = 0.0;
     let z_vel = 0.2;
 
     let pres = environment.get_surface_value(x_pos, y_pos, Pressure)?;

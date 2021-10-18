@@ -44,11 +44,11 @@ type LonLat<T> = (T, T);
 /// levels that can be requested.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum EnvFields {
-    Temperature,
     Pressure,
     VirtualTemperature,
-    SpecificHumidity,
+    #[cfg(feature="3d")]
     UWind,
+    #[cfg(feature="3d")]
     VWind,
 }
 
@@ -95,7 +95,9 @@ pub enum SurfaceFields {
     Dewpoint,
     Pressure,
     Height,
+    #[cfg(feature="3d")]
     UWind,
+    #[cfg(feature="3d")]
     VWind,
 }
 
