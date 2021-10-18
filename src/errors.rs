@@ -40,6 +40,9 @@ pub enum ModelError {
 
     #[error("Error while handling the file: {0}")]
     FileHandling(#[from] std::io::Error),
+
+    #[error("Error with output directory: {0}")]
+    FaultyOutput(&'static str),
 }
 
 /// Errors related to reading and handling the model configuration.

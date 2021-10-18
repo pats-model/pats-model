@@ -182,10 +182,28 @@ impl Environment {
 /// for a given domain.
 fn generate_domain_projection(domain: &Domain) -> Result<LambertConicConformal, EnvironmentError> {
     let sides = measure_domain_sides(domain);
-    let top_parallel = compute_top_lat(domain.ref_lat, sides.1);
-    let center_longitude = approx_central_lon(domain.ref_lon, domain.ref_lat, sides.0);
 
-    let projection = LambertConicConformal::new(center_longitude, domain.ref_lat, top_parallel)?;
+    // if there's only one parcel to release in some direction
+    // we use the special case for projection
+    let lon_0;
+    let lat_1;
+    let lat_2;
+
+    if sides.0 < 0.1 {
+        lon_0 = domain.ref_lon
+    } else {
+        lon_0 = approx_central_lon(domain.ref_lon, domain.ref_lat, sides.0);
+    }
+
+    if sides.1 < 0.1 {
+        lat_1 = domain.ref_lat - 1.0;
+        lat_2 = domain.ref_lat + 1.0;
+    } else {
+        lat_1 = domain.ref_lat;
+        lat_2 = compute_top_lat(domain.ref_lat, sides.1);
+    }
+
+    let projection = LambertConicConformal::new(lon_0, lat_1, lat_2)?;
 
     Ok(projection)
 }

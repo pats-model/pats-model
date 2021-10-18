@@ -152,18 +152,17 @@ impl Environment {
                     // in all other cases error is returned
 
                     match err {
-                        SearchError::OutOfBounds => {}
+                        SearchError::OutOfBounds => {
+                            if &z < &self.fields.height[[0, *x_index, *y_index]] {
+                                return Ok(0);
+                            } else {
+                                return Err(err);
+                            }
+                        }
                         _ => {
                             return Err(err);
                         }
                     }
-
-                    // height decreases with height
-                    if &z > &self.fields.height[[0, *x_index, *y_index]] {
-                        return Ok(0);
-                    }
-
-                    return Err(err);
                 })?;
 
             let (lon, lat) = (

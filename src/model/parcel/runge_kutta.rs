@@ -4,6 +4,7 @@ use crate::{errors::ParcelError, model::environment::Environment, Float};
 use chrono::Duration;
 use floccus::constants::{C_P, C_PV, C_V, C_VV, EPSILON, G, L_V, R_D};
 use floccus::{mixing_ratio, virtual_temperature};
+use log::debug;
 use std::sync::Arc;
 
 /// (TODO: What it is)
@@ -55,10 +56,12 @@ impl<'a> RungeKuttaDynamics<'a> {
     fn ascent_adiabatically(&mut self) -> Result<(), ParcelError> {
         let initial_state = self.parcel_log.last().unwrap();
 
-        if initial_state.velocity.z <= 0.0 && initial_state.mxng_rto <= initial_state.satr_mxng_rto
-        {
+        if initial_state.velocity.z <= 0.0 {
             return Ok(());
         }
+
+        debug!("Starting adiabatic ascent");
+        debug!("Init state: {:?}", initial_state);
 
         let adiabatic_scheme = AdiabaticScheme::new(initial_state, self.env);
 
@@ -101,7 +104,7 @@ impl<'a> RungeKuttaDynamics<'a> {
             result_parcel = adiabatic_scheme.state_at_position(&result_parcel)?;
 
             if result_parcel.velocity.z <= 0.0
-                && result_parcel.mxng_rto <= result_parcel.satr_mxng_rto
+                || result_parcel.mxng_rto > result_parcel.satr_mxng_rto
             {
                 break;
             }
@@ -118,10 +121,12 @@ impl<'a> RungeKuttaDynamics<'a> {
     fn ascent_pseudoadiabatically(&mut self) -> Result<(), ParcelError> {
         let initial_state = self.parcel_log.last().unwrap();
 
-        if initial_state.velocity.z <= 0.0 && initial_state.mxng_rto <= initial_state.satr_mxng_rto
-        {
+        if initial_state.velocity.z <= 0.0 || initial_state.mxng_rto < 0.000001 {
             return Ok(());
         }
+
+        debug!("Starting pseudoadiabatic ascent");
+        debug!("Init state: {:?}", initial_state);
 
         let pseudoadiabatic_scheme = PseudoAdiabaticScheme::new(initial_state, self.env);
 
@@ -167,9 +172,7 @@ impl<'a> RungeKuttaDynamics<'a> {
             result_parcel.velocity += delta_vel;
             result_parcel = pseudoadiabatic_scheme.state_at_position(&result_parcel)?;
 
-            if result_parcel.velocity.z <= 0.0
-                && result_parcel.mxng_rto < 0.000001
-            {
+            if result_parcel.velocity.z <= 0.0 || result_parcel.mxng_rto < 0.000001 {
                 break;
             }
 
@@ -295,7 +298,7 @@ impl<'a> PseudoAdiabaticScheme<'a> {
         updated_state.satr_mxng_rto =
             mixing_ratio::accuracy1(updated_state.temp, updated_state.pres)?;
 
-        // if saturation mixing ratio dropped we bring the parcel back to 
+        // if saturation mixing ratio dropped we bring the parcel back to
         // 100% saturation
         if updated_state.satr_mxng_rto > updated_state.mxng_rto {
             updated_state.mxng_rto = updated_state.satr_mxng_rto;
@@ -312,7 +315,7 @@ impl<'a> PseudoAdiabaticScheme<'a> {
     /// (Why it is neccessary)
     fn iterate_to_temperature(&self, target_pressure: Float) -> Float {
         let step_count = ((self.ref_pres - target_pressure).abs() / 1.0).ceil() as usize;
-        let step = (self.ref_pres - target_pressure) / step_count as Float;
+        let step = (target_pressure - self.ref_pres) / step_count as Float;
 
         let mut temp_n = self.ref_temp;
         let mut pres_n = self.ref_pres;

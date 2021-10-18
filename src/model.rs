@@ -33,6 +33,7 @@ use log::{debug, error, info};
 use ndarray::Array1;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
+    fs,
     path::Path,
     sync::{mpsc::channel, Arc},
 };
@@ -88,6 +89,8 @@ impl Core {
 pub fn main() -> Result<(), ModelError> {
     info!("Preparing the model core");
 
+    prepare_output_dir()?;
+
     let model_core = Core::new()?;
 
     let parcels = prepare_parcels_list(&model_core);
@@ -114,6 +117,25 @@ pub fn main() -> Result<(), ModelError> {
             error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
         });
     }
+
+    Ok(())
+}
+
+fn prepare_output_dir() -> Result<(), ModelError> {
+    debug!("Checking and setting output directory");
+
+    let out_path = Path::new("./output/");
+
+    if out_path.is_dir() {
+        if out_path.read_dir()?.next().is_none() {
+            debug!("Output directory exists but is empty so continuing");
+        } else {
+            return Err(ModelError::FaultyOutput("Output directory exists and is not empty"));
+        }
+    }
+
+    debug!("Output directory does not exist so creating a new one");
+    fs::create_dir(out_path)?;
 
     Ok(())
 }

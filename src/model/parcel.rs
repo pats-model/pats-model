@@ -132,7 +132,7 @@ pub fn deploy(
     // we report that in log, but do not return the error
     // as parcel has been deployed
     if let Err(err) = parcel_result {
-        error!("Parcel released from x: {:.2} y: {:.2} has stopped its ascent with error: {}. Check your configuration.", 
+        error!("Parcel released from x: {:.2} y: {:.2} has stopped its ascent with error: {} Check your configuration.", 
         start_coords.0, start_coords.1, err);
         return Ok(());
     }
@@ -158,8 +158,10 @@ fn prepare_parcel(
     // currently, constant initial vertical velocity (0.2 m/s)
     // but then lifiting can be taken into account
     // also as initial acceleration
-    let x_vel = environment.get_surface_value(x_pos, y_pos, UWind)?;
-    let y_vel = environment.get_surface_value(x_pos, y_pos, VWind)?;
+    // let x_vel = environment.get_surface_value(x_pos, y_pos, UWind)?;
+    // let y_vel = environment.get_surface_value(x_pos, y_pos, VWind)?;
+    let x_vel = 0.0;
+    let y_vel = 0.0;
     let z_vel = 0.2;
 
     let pres = environment.get_surface_value(x_pos, y_pos, Pressure)?;
@@ -192,6 +194,7 @@ fn prepare_parcel(
 
 fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap());
+
     let out_path = format!("./output/{}.csv", parcel_id);
     let out_path = Path::new(&out_path);
 
@@ -213,6 +216,7 @@ fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
     ])?;
 
     for parcel in parcel_log {
+        // todo!("Project coordinates in output!");
         out_file.write_record(&[
             parcel.datetime.to_string(),
             parcel.position.x.to_string(),
