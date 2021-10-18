@@ -1,7 +1,8 @@
 use super::{ParcelState, Vec3};
 use crate::model::environment::EnvFields::{Pressure, VirtualTemperature};
 use crate::{errors::ParcelError, model::environment::Environment, Float};
-use floccus::constants::{C_P, C_PV, C_V, C_VV, G};
+use chrono::Duration;
+use floccus::constants::{C_P, C_PV, C_V, C_VV, EPSILON, G, L_V, R_D};
 use floccus::{mixing_ratio, virtual_temperature};
 use std::sync::Arc;
 
@@ -53,38 +54,40 @@ impl<'a> RungeKuttaDynamics<'a> {
     /// (Why it is neccessary)
     fn ascent_adiabatically(&mut self) -> Result<(), ParcelError> {
         let initial_state = self.parcel_log.last().unwrap();
+
+        if initial_state.velocity.z <= 0.0 && initial_state.mxng_rto <= initial_state.satr_mxng_rto
+        {
+            return Ok(());
+        }
+
         let adiabatic_scheme = AdiabaticScheme::new(initial_state, self.env);
 
         loop {
             let ref_parcel = self.parcel_log.last().unwrap().clone();
 
-            if ref_parcel.velocity.z <= 0.0 && ref_parcel.mxng_rto <= ref_parcel.satr_mxng_rto {
-                break;
-            }
-
             // holographic parcel is a virtual parcel that is moved
             // around for RK4 computations but doesn't change its
             // thermodynamic properties in reference to the prestep state
             let holo_parcel = ref_parcel;
-            let c_0 = holo_parcel.velocity;
+            let c_0 = ref_parcel.velocity;
             let k_0 =
                 self.calculate_bouyancy_force(&adiabatic_scheme.state_at_position(&holo_parcel)?)?;
 
             let mut holo_parcel = ref_parcel;
             holo_parcel.position += 0.5 * self.timestep * c_0;
-            let c_1 = holo_parcel.velocity + 0.5 * self.timestep * k_0;
+            let c_1 = ref_parcel.velocity + 0.5 * self.timestep * k_0;
             let k_1 =
                 self.calculate_bouyancy_force(&adiabatic_scheme.state_at_position(&holo_parcel)?)?;
 
             let mut holo_parcel = ref_parcel;
             holo_parcel.position += 0.5 * self.timestep * c_1;
-            let c_2 = holo_parcel.velocity + 0.5 * self.timestep * k_1;
+            let c_2 = ref_parcel.velocity + 0.5 * self.timestep * k_1;
             let k_2 =
                 self.calculate_bouyancy_force(&adiabatic_scheme.state_at_position(&holo_parcel)?)?;
 
             let mut holo_parcel = ref_parcel;
             holo_parcel.position += self.timestep * c_2;
-            let c_3 = holo_parcel.velocity + self.timestep * k_2;
+            let c_3 = ref_parcel.velocity + self.timestep * k_2;
             let k_3 =
                 self.calculate_bouyancy_force(&adiabatic_scheme.state_at_position(&holo_parcel)?)?;
 
@@ -92,9 +95,16 @@ impl<'a> RungeKuttaDynamics<'a> {
             let delta_vel = (self.timestep / 6.0) * (k_0 + 2.0 * k_1 + 2.0 * k_2 + k_3);
 
             let mut result_parcel = ref_parcel;
+            result_parcel.datetime += Duration::milliseconds((self.timestep * 1000.0) as i64);
             result_parcel.position += delta_pos;
             result_parcel.velocity += delta_vel;
-            adiabatic_scheme.state_at_position(&result_parcel)?;
+            result_parcel = adiabatic_scheme.state_at_position(&result_parcel)?;
+
+            if result_parcel.velocity.z <= 0.0
+                && result_parcel.mxng_rto <= result_parcel.satr_mxng_rto
+            {
+                break;
+            }
 
             self.parcel_log.push(result_parcel);
         }
@@ -106,6 +116,66 @@ impl<'a> RungeKuttaDynamics<'a> {
     ///
     /// (Why it is neccessary)
     fn ascent_pseudoadiabatically(&mut self) -> Result<(), ParcelError> {
+        let initial_state = self.parcel_log.last().unwrap();
+
+        if initial_state.velocity.z <= 0.0 && initial_state.mxng_rto <= initial_state.satr_mxng_rto
+        {
+            return Ok(());
+        }
+
+        let pseudoadiabatic_scheme = PseudoAdiabaticScheme::new(initial_state, self.env);
+
+        loop {
+            let ref_parcel = self.parcel_log.last().unwrap().clone();
+
+            // holographic parcel is a virtual parcel that is moved
+            // around for RK4 computations but doesn't change its
+            // thermodynamic properties in reference to the prestep state
+            let holo_parcel = ref_parcel;
+            let c_0 = ref_parcel.velocity;
+            let k_0 = self.calculate_bouyancy_force(
+                &pseudoadiabatic_scheme.state_at_position(&holo_parcel)?,
+            )?;
+
+            let mut holo_parcel = ref_parcel;
+            holo_parcel.position += 0.5 * self.timestep * c_0;
+            let c_1 = ref_parcel.velocity + 0.5 * self.timestep * k_0;
+            let k_1 = self.calculate_bouyancy_force(
+                &pseudoadiabatic_scheme.state_at_position(&holo_parcel)?,
+            )?;
+
+            let mut holo_parcel = ref_parcel;
+            holo_parcel.position += 0.5 * self.timestep * c_1;
+            let c_2 = ref_parcel.velocity + 0.5 * self.timestep * k_1;
+            let k_2 = self.calculate_bouyancy_force(
+                &pseudoadiabatic_scheme.state_at_position(&holo_parcel)?,
+            )?;
+
+            let mut holo_parcel = ref_parcel;
+            holo_parcel.position += self.timestep * c_2;
+            let c_3 = ref_parcel.velocity + self.timestep * k_2;
+            let k_3 = self.calculate_bouyancy_force(
+                &pseudoadiabatic_scheme.state_at_position(&holo_parcel)?,
+            )?;
+
+            let delta_pos = (self.timestep / 6.0) * (c_0 + 2.0 * c_1 + 2.0 * c_2 + c_3);
+            let delta_vel = (self.timestep / 6.0) * (k_0 + 2.0 * k_1 + 2.0 * k_2 + k_3);
+
+            let mut result_parcel = ref_parcel;
+            result_parcel.datetime += Duration::milliseconds((self.timestep * 1000.0) as i64);
+            result_parcel.position += delta_pos;
+            result_parcel.velocity += delta_vel;
+            result_parcel = pseudoadiabatic_scheme.state_at_position(&result_parcel)?;
+
+            if result_parcel.velocity.z <= 0.0
+                && result_parcel.mxng_rto < 0.000001
+            {
+                break;
+            }
+
+            self.parcel_log.push(result_parcel);
+        }
+
         Ok(())
     }
 
@@ -179,4 +249,122 @@ impl<'a> AdiabaticScheme<'a> {
 
         Ok(updated_state)
     }
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+#[derive(Clone, Debug)]
+struct PseudoAdiabaticScheme<'a> {
+    ref_temp: Float,
+    ref_pres: Float,
+    ref_mxng_rto: Float,
+    ref_satr_mxng_rto: Float,
+    env: &'a Arc<Environment>,
+}
+
+impl<'a> PseudoAdiabaticScheme<'a> {
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    pub fn new(refrence: &ParcelState, environment: &'a Arc<Environment>) -> Self {
+        PseudoAdiabaticScheme {
+            ref_temp: refrence.temp,
+            ref_pres: refrence.pres,
+            env: environment,
+            ref_mxng_rto: refrence.mxng_rto,
+            ref_satr_mxng_rto: refrence.satr_mxng_rto,
+        }
+    }
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    pub fn state_at_position(&self, ref_state: &ParcelState) -> Result<ParcelState, ParcelError> {
+        let mut updated_state = ref_state.clone();
+
+        updated_state.pres = self.env.get_field_value(
+            ref_state.position.x,
+            ref_state.position.y,
+            ref_state.position.z,
+            Pressure,
+        )?;
+
+        updated_state.temp = self.iterate_to_temperature(updated_state.pres);
+
+        updated_state.satr_mxng_rto =
+            mixing_ratio::accuracy1(updated_state.temp, updated_state.pres)?;
+
+        // if saturation mixing ratio dropped we bring the parcel back to 
+        // 100% saturation
+        if updated_state.satr_mxng_rto > updated_state.mxng_rto {
+            updated_state.mxng_rto = updated_state.satr_mxng_rto;
+        }
+
+        updated_state.vrt_temp =
+            virtual_temperature::general1(updated_state.temp, updated_state.mxng_rto)?;
+
+        Ok(updated_state)
+    }
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    fn iterate_to_temperature(&self, target_pressure: Float) -> Float {
+        let step_count = ((self.ref_pres - target_pressure).abs() / 1.0).ceil() as usize;
+        let step = (self.ref_pres - target_pressure) / step_count as Float;
+
+        let mut temp_n = self.ref_temp;
+        let mut pres_n = self.ref_pres;
+
+        // throughout the derivation we're keeping mixing ratios constant
+        // as the derivative is a partial derivative of the pressure and temperature
+        for _ in 0..step_count {
+            let k_0 = pseudoadiabatic_derivative(
+                temp_n,
+                pres_n,
+                self.ref_mxng_rto,
+                self.ref_satr_mxng_rto,
+            );
+            let k_1 = pseudoadiabatic_derivative(
+                temp_n + 0.5 * step * k_0,
+                pres_n + 0.5 * step,
+                self.ref_mxng_rto,
+                self.ref_satr_mxng_rto,
+            );
+            let k_2 = pseudoadiabatic_derivative(
+                temp_n + 0.5 * step * k_1,
+                pres_n + 0.5 * step,
+                self.ref_mxng_rto,
+                self.ref_satr_mxng_rto,
+            );
+            let k_3 = pseudoadiabatic_derivative(
+                temp_n + step * k_2,
+                pres_n + step,
+                self.ref_mxng_rto,
+                self.ref_satr_mxng_rto,
+            );
+
+            pres_n += step;
+            temp_n += (step / 6.0) * (k_0 + 2.0 * k_1 + 2.0 * k_2 + k_3);
+        }
+
+        temp_n
+    }
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn pseudoadiabatic_derivative(
+    temp: Float,
+    pres: Float,
+    mxng_rto: Float,
+    satr_mxng_rto: Float,
+) -> Float {
+    let b = (1.0 + (mxng_rto / EPSILON)) / (1.0 + (mxng_rto / (C_P / C_PV)));
+
+    (b / pres)
+        * ((R_D * temp + L_V * satr_mxng_rto)
+            / (C_P + ((L_V * L_V * satr_mxng_rto * EPSILON * b) / (R_D * temp * temp))))
 }

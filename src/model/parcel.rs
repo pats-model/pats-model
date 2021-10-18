@@ -23,6 +23,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 mod runge_kutta;
 
+use log::error;
 use runge_kutta::RungeKuttaDynamics;
 use std::{
     ops::{Add, AddAssign, Mul},
@@ -125,6 +126,17 @@ pub fn deploy(
 
     let parcel_result = dynamic_scheme.run_simulation();
 
+    // if the parcel simulation stops with error
+    // we report that in log, but do not return the error
+    // as parcel has been deployed
+    if let Err(err) = parcel_result {
+        error!("Parcel released from x: {:.2} y: {:.2} has stopped its ascent with error: {}. Check your configuration.", 
+        start_coords.0, start_coords.1, err);
+        return Ok(());
+    }
+
+    
+
     Ok(())
 }
 
@@ -174,4 +186,8 @@ fn prepare_parcel(
         satr_mxng_rto,
         vrt_temp,
     })
+}
+
+fn save_parcel_log(parcel_log: Vec<ParcelState>) {
+
 }

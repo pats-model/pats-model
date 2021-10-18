@@ -85,7 +85,7 @@ impl Core {
 /// It reads the provided configuration and input data
 /// and then deploys parcels within the domain onto the threadpool
 /// and checks for errors.
-pub fn main() -> Result<String, ModelError> {
+pub fn main() -> Result<(), ModelError> {
     info!("Preparing the model core");
 
     let model_core = Core::new()?;
@@ -104,20 +104,18 @@ pub fn main() -> Result<String, ModelError> {
         let environment = Arc::clone(&environment);
 
         model_core.threadpool.spawn(move || {
-            tx.send(parcel::deploy(parcel_coords, 
-                &config, 
-                &environment))
+            tx.send(parcel::deploy(parcel_coords, &config, &environment))
                 .unwrap();
         });
     }
 
     for _ in 0..parcels_count {
         rx.recv().expect("Receiving parcel result failed").unwrap_or_else(|err| {
-            error!("Could not deploy the parcel due to an error, check the details and rerun the model: {}", err);
+            error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
         });
     }
 
-    Ok(" ".to_string())
+    Ok(())
 }
 
 /// Function calculating initial parcels positions from configuration
