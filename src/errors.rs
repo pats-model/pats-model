@@ -37,6 +37,9 @@ pub enum ModelError {
 
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
     UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
+
+    #[error("Error while handling the file: {0}")]
+    FileHandling(#[from] std::io::Error),
 }
 
 /// Errors related to reading and handling the model configuration.

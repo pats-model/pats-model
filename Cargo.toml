@@ -40,6 +40,7 @@ eccodes = "0.5.4"
 floccus = "0.2.2"
 nalgebra = "0.29.0"
 cap = "0.1.0"
+csv = "1.1.6"
 
 [features]
 double_precision = ["floccus/double_precision"]
