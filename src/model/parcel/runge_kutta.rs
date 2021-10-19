@@ -335,6 +335,8 @@ impl<'a> PseudoAdiabaticScheme<'a> {
             Pressure,
         )?;
 
+        updated_state.temp = self.iterate_to_temperature(updated_state.pres);
+
         let satr_vap_pres;
         if updated_state.temp < 253.0 {
             // if the temperature is very low use dedicated formula
