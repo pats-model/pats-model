@@ -3,7 +3,7 @@ use crate::model::environment::EnvFields::{Pressure, UWind, VWind, VirtualTemper
 use crate::{errors::ParcelError, model::environment::Environment, Float};
 use chrono::Duration;
 use floccus::constants::{C_P, C_PV, C_V, C_VV, EPSILON, G, L_V, R_D};
-use floccus::{mixing_ratio, virtual_temperature};
+use floccus::{mixing_ratio, vapour_pressure, virtual_temperature};
 use log::debug;
 use std::sync::Arc;
 
@@ -279,8 +279,16 @@ impl<'a> AdiabaticScheme<'a> {
         updated_state.temp =
             (self.lambda / updated_state.pres.powf(1.0 - self.gamma)).powf(1.0 / self.gamma);
 
-        updated_state.satr_mxng_rto =
-            mixing_ratio::accuracy1(updated_state.temp, updated_state.pres)?;
+        let satr_vap_pres;
+        if updated_state.temp < 253.0 {
+            // if the temperature is very low use dedicated formula
+            satr_vap_pres = vapour_pressure::buck2(updated_state.temp, updated_state.pres)?;
+        } else {
+            // else use usual buck formula over water
+            satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
+        }
+
+        updated_state.satr_mxng_rto = mixing_ratio::general1(updated_state.pres, satr_vap_pres)?;
         updated_state.vrt_temp =
             virtual_temperature::general1(updated_state.temp, updated_state.mxng_rto)?;
 
@@ -327,10 +335,16 @@ impl<'a> PseudoAdiabaticScheme<'a> {
             Pressure,
         )?;
 
-        updated_state.temp = self.iterate_to_temperature(updated_state.pres);
+        let satr_vap_pres;
+        if updated_state.temp < 253.0 {
+            // if the temperature is very low use dedicated formula
+            satr_vap_pres = vapour_pressure::buck2(updated_state.temp, updated_state.pres)?;
+        } else {
+            // else use usual buck formula over water
+            satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
+        }
 
-        updated_state.satr_mxng_rto =
-            mixing_ratio::accuracy1(updated_state.temp, updated_state.pres)?;
+        updated_state.satr_mxng_rto = mixing_ratio::general1(updated_state.pres, satr_vap_pres)?;
 
         // if saturation mixing ratio dropped we bring the parcel back to
         // 100% saturation
