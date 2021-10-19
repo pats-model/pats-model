@@ -45,6 +45,7 @@ csv = "1.1.6"
 [features]
 double_precision = ["floccus/double_precision"]
 3d = []
+raw_output = []
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "./src/html/docs-header.html" ]

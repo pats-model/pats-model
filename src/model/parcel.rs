@@ -135,13 +135,17 @@ pub fn deploy(
     // we report that in log, but do not return the error
     // as parcel has been deployed
     if let Err(err) = parcel_result {
-        let (lon, lat) = environment.projection.inverse_project(start_coords.0, start_coords.1);
+        let (lon, lat) = environment
+            .projection
+            .inverse_project(start_coords.0, start_coords.1);
         error!("Parcel released from N{:.2} E{:.2} has stopped its ascent with error: {} Check your configuration.", 
         lat, lon, err);
         return Ok(());
     }
 
-    save_parcel_log(&dynamic_scheme.parcel_log, environment)?;
+    if cfg!(feature = "raw_output") {
+        save_parcel_log(&dynamic_scheme.parcel_log, environment)?;
+    }
 
     Ok(())
 }
@@ -202,7 +206,10 @@ fn prepare_parcel(
     })
 }
 
-fn save_parcel_log(parcel_log: &Vec<ParcelState>, environment: &Arc<Environment>) -> Result<(), Error> {
+fn save_parcel_log(
+    parcel_log: &Vec<ParcelState>,
+    environment: &Arc<Environment>,
+) -> Result<(), Error> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap());
 
     let out_path = format!("./output/{}.csv", parcel_id);
@@ -226,8 +233,10 @@ fn save_parcel_log(parcel_log: &Vec<ParcelState>, environment: &Arc<Environment>
     ])?;
 
     for parcel in parcel_log {
-        let (lon, lat) = environment.projection.inverse_project(parcel.position.x, parcel.position.y);
-        
+        let (lon, lat) = environment
+            .projection
+            .inverse_project(parcel.position.x, parcel.position.y);
+
         out_file.write_record(&[
             parcel.datetime.to_string(),
             lon.to_string(),
