@@ -46,9 +46,7 @@ type LonLat<T> = (T, T);
 pub enum EnvFields {
     Pressure,
     VirtualTemperature,
-    #[cfg(feature="3d")]
     UWind,
-    #[cfg(feature="3d")]
     VWind,
 }
 

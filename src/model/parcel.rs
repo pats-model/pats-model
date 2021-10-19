@@ -135,12 +135,13 @@ pub fn deploy(
     // we report that in log, but do not return the error
     // as parcel has been deployed
     if let Err(err) = parcel_result {
-        error!("Parcel released from x: {:.2} y: {:.2} has stopped its ascent with error: {} Check your configuration.", 
-        start_coords.0, start_coords.1, err);
+        let (lon, lat) = environment.projection.inverse_project(start_coords.0, start_coords.1);
+        error!("Parcel released from N{:.2} E{:.2} has stopped its ascent with error: {} Check your configuration.", 
+        lat, lon, err);
         return Ok(());
     }
 
-    save_parcel_log(&dynamic_scheme.parcel_log)?;
+    save_parcel_log(&dynamic_scheme.parcel_log, environment)?;
 
     Ok(())
 }
@@ -201,7 +202,7 @@ fn prepare_parcel(
     })
 }
 
-fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
+fn save_parcel_log(parcel_log: &Vec<ParcelState>, environment: &Arc<Environment>) -> Result<(), Error> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap());
 
     let out_path = format!("./output/{}.csv", parcel_id);
@@ -211,8 +212,8 @@ fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
 
     out_file.write_record(&[
         "dateTime",
-        "positionX",
-        "positionY",
+        "longitude",
+        "latitude",
         "positionZ",
         "velocityX",
         "velocityY",
@@ -225,11 +226,12 @@ fn save_parcel_log(parcel_log: &Vec<ParcelState>) -> Result<(), Error> {
     ])?;
 
     for parcel in parcel_log {
-        // todo!("Project coordinates in output!");
+        let (lon, lat) = environment.projection.inverse_project(parcel.position.x, parcel.position.y);
+        
         out_file.write_record(&[
             parcel.datetime.to_string(),
-            parcel.position.x.to_string(),
-            parcel.position.y.to_string(),
+            lon.to_string(),
+            lat.to_string(),
             parcel.position.z.to_string(),
             parcel.velocity.x.to_string(),
             parcel.velocity.y.to_string(),

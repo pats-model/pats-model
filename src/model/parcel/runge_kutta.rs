@@ -1,5 +1,5 @@
 use super::{ParcelState, Vec3};
-use crate::model::environment::EnvFields::{Pressure, VirtualTemperature};
+use crate::model::environment::EnvFields::{Pressure, UWind, VWind, VirtualTemperature};
 use crate::{errors::ParcelError, model::environment::Environment, Float};
 use chrono::Duration;
 use floccus::constants::{C_P, C_PV, C_V, C_VV, EPSILON, G, L_V, R_D};
@@ -101,6 +101,23 @@ impl<'a> RungeKuttaDynamics<'a> {
             result_parcel.datetime += Duration::milliseconds((self.timestep * 1000.0) as i64);
             result_parcel.position += delta_pos;
             result_parcel.velocity += delta_vel;
+
+            if cfg!(feature = "3d") {
+                result_parcel.velocity.x = self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    UWind,
+                )?;
+
+                result_parcel.velocity.y = self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    VWind,
+                )?;
+            }
+
             result_parcel = adiabatic_scheme.state_at_position(&result_parcel)?;
 
             if result_parcel.velocity.z <= 0.0
@@ -170,6 +187,23 @@ impl<'a> RungeKuttaDynamics<'a> {
             result_parcel.datetime += Duration::milliseconds((self.timestep * 1000.0) as i64);
             result_parcel.position += delta_pos;
             result_parcel.velocity += delta_vel;
+
+            if cfg!(feature = "3d") {
+                result_parcel.velocity.x = self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    UWind,
+                )?;
+
+                result_parcel.velocity.y = self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    VWind,
+                )?;
+            }
+
             result_parcel = pseudoadiabatic_scheme.state_at_position(&result_parcel)?;
 
             if result_parcel.velocity.z <= 0.0 || result_parcel.mxng_rto < 0.000001 {

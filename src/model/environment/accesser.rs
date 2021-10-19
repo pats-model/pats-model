@@ -63,9 +63,9 @@ impl Environment {
             SurfaceFields::Dewpoint => self.surface.dewpoint.view(),
             SurfaceFields::Pressure => self.surface.pressure.view(),
             SurfaceFields::Height => self.surface.height.view(),
-            #[cfg(feature="3d")]
+            #[cfg(feature = "3d")]
             SurfaceFields::UWind => self.surface.u_wind.view(),
-            #[cfg(feature="3d")]
+            #[cfg(feature = "3d")]
             SurfaceFields::VWind => self.surface.v_wind.view(),
         };
 
@@ -125,9 +125,7 @@ impl Environment {
         let field = match field {
             EnvFields::Pressure => self.fields.pressure.view(),
             EnvFields::VirtualTemperature => self.fields.virtual_temp.view(),
-            #[cfg(feature="3d")]
             EnvFields::UWind => self.fields.u_wind.view(),
-            #[cfg(feature="3d")]
             EnvFields::VWind => self.fields.v_wind.view(),
         };
 
