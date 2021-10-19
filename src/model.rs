@@ -121,6 +121,9 @@ pub fn main() -> Result<(), ModelError> {
     Ok(())
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn prepare_output_dir() -> Result<(), ModelError> {
     debug!("Checking and setting output directory");
 
@@ -130,12 +133,14 @@ fn prepare_output_dir() -> Result<(), ModelError> {
         if out_path.read_dir()?.next().is_none() {
             debug!("Output directory exists but is empty so continuing");
         } else {
-            return Err(ModelError::FaultyOutput("Output directory exists and is not empty"));
+            return Err(ModelError::FaultyOutput(
+                "Output directory exists and is not empty",
+            ));
         }
+    } else {
+        debug!("Output directory does not exist so creating a new one");
+        fs::create_dir(out_path)?;
     }
-
-    debug!("Output directory does not exist so creating a new one");
-    fs::create_dir(out_path)?;
 
     Ok(())
 }
