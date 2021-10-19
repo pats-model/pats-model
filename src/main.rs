@@ -70,7 +70,7 @@ fn main() {
         .init();
 
     match model::main() {
-        Ok(_) => info!("Model finished successfully. Check the output directory"),
-        Err(err) => error!("Model failed with error: {}", err),
+        Ok(_) => info!("Model execution finished. Check the output directory and log."),
+        Err(err) => error!("Model execution failed with error: {}", err),
     }
 }

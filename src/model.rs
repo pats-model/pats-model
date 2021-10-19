@@ -29,6 +29,7 @@ use crate::{
     model::{configuration::Config, environment::Environment},
     Float, ALLOCATOR,
 };
+use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info};
 use ndarray::Array1;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -89,6 +90,7 @@ impl Core {
 pub fn main() -> Result<(), ModelError> {
     info!("Preparing the model core");
 
+    // prepare all prerequisites for running the model
     prepare_output_dir()?;
 
     let model_core = Core::new()?;
@@ -99,6 +101,18 @@ pub fn main() -> Result<(), ModelError> {
     let config = Arc::new(model_core.config);
     let environment = Arc::new(model_core.environ);
 
+    info!("Deploying parcels");
+
+    // set progress bar for simulated parcels
+    let parcels_bar = ProgressBar::new(parcels_count as u64);
+    parcels_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} {msg}")
+            .progress_chars("#>-"),
+    );
+    parcels_bar.set_prefix("Simulated parcels");
+
+    // deploy parcels on to the threadpool
     let (tx, rx) = channel();
 
     for parcel_coords in parcels {
@@ -112,12 +126,15 @@ pub fn main() -> Result<(), ModelError> {
         });
     }
 
+    // receive parcels status
     for _ in 0..parcels_count {
         rx.recv().expect("Receiving parcel result failed").unwrap_or_else(|err| {
             error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
         });
+        parcels_bar.inc(1);
     }
 
+    parcels_bar.finish_with_message("All parcels done");
     Ok(())
 }
 
