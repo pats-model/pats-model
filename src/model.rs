@@ -23,6 +23,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 mod configuration;
 mod environment;
 mod parcel;
+mod vec3;
 
 use crate::{
     errors::ModelError,
