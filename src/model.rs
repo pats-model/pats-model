@@ -25,6 +25,7 @@ mod environment;
 mod parcel;
 mod vec3;
 
+use crate::model::parcel::conv_params::ConvectiveParams;
 use crate::{
     errors::ModelError,
     model::{configuration::Config, environment::Environment},
@@ -37,8 +38,73 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{
     fs,
     path::Path,
-    sync::{mpsc::channel, Arc},
+    sync::{mpsc, Arc},
 };
+
+/// Main model function, responsible for all simulation steps.
+///
+/// It reads the provided configuration and input data
+/// and then deploys parcels within the domain onto the threadpool
+/// and checks for errors.
+pub fn main() -> Result<(), ModelError> {
+    info!("Preparing the model core");
+
+    // prepare all prerequisites for running the model
+    prepare_output_dir()?;
+
+    let model_core = Core::new()?;
+
+    let parcels = prepare_parcels_list(&model_core);
+    let parcels_count = parcels.len();
+
+    let mut parcels_params: Vec<ConvectiveParams> = Vec::with_capacity(parcels_count);
+
+    let config = Arc::new(model_core.config);
+    let environment = Arc::new(model_core.environ);
+
+    info!("Deploying parcels");
+
+    // set progress bar for simulated parcels
+    let parcels_bar = ProgressBar::new(parcels_count as u64);
+    parcels_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} {msg}")
+            .progress_chars("#>-"),
+    );
+    parcels_bar.set_prefix("Simulated parcels");
+
+    // deploy parcels on to the threadpool
+    let (tx, rx) = mpsc::channel();
+
+    for parcel_coords in parcels {
+        let tx = tx.clone();
+        let config = Arc::clone(&config);
+        let environment = Arc::clone(&environment);
+
+        model_core.threadpool.spawn(move || {
+            tx.send(parcel::deploy(parcel_coords, &config, &environment))
+                .unwrap();
+        });
+    }
+
+    // receive parcels status and computed convective parameters
+    for _ in 0..parcels_count {
+        let parcel_result = rx.recv().expect("Receiving parcel result failed");
+
+        match parcel_result {
+            Ok(params) => {
+                parcels_params.push(params);
+            }
+            Err(err) => {
+                error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
+            }
+        }
+        parcels_bar.inc(1);
+    }
+
+    parcels_bar.finish_with_message("All parcels done");
+    Ok(())
+}
 
 /// Structure containing model parameters.
 ///
@@ -81,62 +147,6 @@ impl Core {
             environ,
         })
     }
-}
-
-/// Main model function, responsible for all simulation steps.
-///
-/// It reads the provided configuration and input data
-/// and then deploys parcels within the domain onto the threadpool
-/// and checks for errors.
-pub fn main() -> Result<(), ModelError> {
-    info!("Preparing the model core");
-
-    // prepare all prerequisites for running the model
-    prepare_output_dir()?;
-
-    let model_core = Core::new()?;
-
-    let parcels = prepare_parcels_list(&model_core);
-    let parcels_count = parcels.len();
-
-    let config = Arc::new(model_core.config);
-    let environment = Arc::new(model_core.environ);
-
-    info!("Deploying parcels");
-
-    // set progress bar for simulated parcels
-    let parcels_bar = ProgressBar::new(parcels_count as u64);
-    parcels_bar.set_style(
-        ProgressStyle::default_bar()
-            .template("{prefix} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} {msg}")
-            .progress_chars("#>-"),
-    );
-    parcels_bar.set_prefix("Simulated parcels");
-
-    // deploy parcels on to the threadpool
-    let (tx, rx) = channel();
-
-    for parcel_coords in parcels {
-        let tx = tx.clone();
-        let config = Arc::clone(&config);
-        let environment = Arc::clone(&environment);
-
-        model_core.threadpool.spawn(move || {
-            tx.send(parcel::deploy(parcel_coords, &config, &environment))
-                .unwrap();
-        });
-    }
-
-    // receive parcels status
-    for _ in 0..parcels_count {
-        rx.recv().expect("Receiving parcel result failed").unwrap_or_else(|err| {
-            error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
-        });
-        parcels_bar.inc(1);
-    }
-
-    parcels_bar.finish_with_message("All parcels done");
-    Ok(())
 }
 
 /// (TODO: What it is)

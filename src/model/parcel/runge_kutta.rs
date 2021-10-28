@@ -1,6 +1,7 @@
 use super::{ParcelState, Vec3};
+use crate::errors::ParcelSimulationError;
 use crate::model::environment::EnvFields::{Pressure, UWind, VWind, VirtualTemperature};
-use crate::{errors::ParcelError, model::environment::Environment, Float};
+use crate::{model::environment::Environment, Float};
 use chrono::Duration;
 use floccus::constants::{C_P, C_PV, C_V, C_VV, EPSILON, G, L_V, R_D};
 use floccus::{mixing_ratio, vapour_pressure, virtual_temperature};
@@ -36,7 +37,7 @@ impl<'a> RungeKuttaDynamics<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    pub fn run_simulation(&mut self) -> Result<(), ParcelError> {
+    pub fn run_simulation(&mut self) -> Result<(), ParcelSimulationError> {
         // from parcel theory: ascent adiabatic until saturation
         self.ascent_adiabatically()?;
 
@@ -53,7 +54,7 @@ impl<'a> RungeKuttaDynamics<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn ascent_adiabatically(&mut self) -> Result<(), ParcelError> {
+    fn ascent_adiabatically(&mut self) -> Result<(), ParcelSimulationError> {
         let initial_state = self.parcel_log.last().unwrap();
 
         if initial_state.velocity.z <= 0.0 {
@@ -135,7 +136,7 @@ impl<'a> RungeKuttaDynamics<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn ascent_pseudoadiabatically(&mut self) -> Result<(), ParcelError> {
+    fn ascent_pseudoadiabatically(&mut self) -> Result<(), ParcelSimulationError> {
         let initial_state = self.parcel_log.last().unwrap();
 
         if initial_state.velocity.z <= 0.0 || initial_state.mxng_rto < 0.000001 {
@@ -219,7 +220,10 @@ impl<'a> RungeKuttaDynamics<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn calculate_bouyancy_force(&self, parcel: &ParcelState) -> Result<Vec3, ParcelError> {
+    fn calculate_bouyancy_force(
+        &self,
+        parcel: &ParcelState,
+    ) -> Result<Vec3, ParcelSimulationError> {
         let tv_env = self.env.get_field_value(
             parcel.position.x,
             parcel.position.y,
@@ -266,7 +270,10 @@ impl<'a> AdiabaticScheme<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    pub fn state_at_position(&self, ref_state: &ParcelState) -> Result<ParcelState, ParcelError> {
+    pub fn state_at_position(
+        &self,
+        ref_state: &ParcelState,
+    ) -> Result<ParcelState, ParcelSimulationError> {
         let mut updated_state = ref_state.clone();
 
         updated_state.pres = self.env.get_field_value(
@@ -325,7 +332,10 @@ impl<'a> PseudoAdiabaticScheme<'a> {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    pub fn state_at_position(&self, ref_state: &ParcelState) -> Result<ParcelState, ParcelError> {
+    pub fn state_at_position(
+        &self,
+        ref_state: &ParcelState,
+    ) -> Result<ParcelState, ParcelSimulationError> {
         let mut updated_state = ref_state.clone();
 
         updated_state.pres = self.env.get_field_value(

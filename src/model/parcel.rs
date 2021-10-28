@@ -21,24 +21,28 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-mod runge_kutta;
+pub(super) mod conv_params;
 mod logger;
+mod runge_kutta;
 
-use log::error;
 use runge_kutta::RungeKuttaDynamics;
-use std::{
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use chrono::NaiveDateTime;
 use floccus::{mixing_ratio, virtual_temperature};
 
-use crate::{errors::ModelError, Float};
+use crate::{Float, errors::ParcelError, model::parcel::conv_params::compute_conv_params};
 
-use super::{configuration::Config, environment::{
+use self::conv_params::ConvectiveParams;
+
+use super::{
+    configuration::Config,
+    environment::{
         Environment,
         SurfaceFields::{Dewpoint, Height, Pressure, Temperature},
-    }, vec3::Vec3};
+    },
+    vec3::Vec3,
+};
 
 #[cfg(feature = "3d")]
 use super::environment::SurfaceFields::{UWind, VWind};
@@ -62,7 +66,7 @@ pub fn deploy(
     start_coords: (Float, Float),
     config: &Arc<Config>,
     environment: &Arc<Environment>,
-) -> Result<(), ModelError> {
+) -> Result<ConvectiveParams, ParcelError> {
     let initial_state = prepare_parcel(start_coords, config, environment)?;
 
     let mut dynamic_scheme =
@@ -71,29 +75,30 @@ pub fn deploy(
     let parcel_result = dynamic_scheme.run_simulation();
 
     // if the parcel simulation stops with error
-    // we report that in log, but do not return the error
-    // as parcel has been deployed
+    // we report compute parcel's initial geographic
+    // coords and return the error with that additional info
     if let Err(err) = parcel_result {
         let (lon, lat) = environment
             .projection
             .inverse_project(start_coords.0, start_coords.1);
-        error!("Parcel released from N{:.2} E{:.2} has stopped its ascent with error: {} Check your configuration.", 
-        lat, lon, err);
-        return Ok(());
+
+        return Err(ParcelError::AscentStopped(lat, lon, err));
     }
 
     if cfg!(feature = "raw_output") {
         logger::save_parcel_log(&dynamic_scheme.parcel_log, environment)?;
     }
 
-    Ok(())
+    let parcel_params = compute_conv_params(&dynamic_scheme.parcel_log, environment)?;
+
+    Ok(parcel_params)
 }
 
 fn prepare_parcel(
     start_coords: (Float, Float),
     config: &Arc<Config>,
     environment: &Arc<Environment>,
-) -> Result<ParcelState, ModelError> {
+) -> Result<ParcelState, ParcelError> {
     // currently, parcel deployed directly from surface
     // but then (configurable) mixed parcel
     let initial_time = config.datetime.start;

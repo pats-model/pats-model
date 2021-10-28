@@ -20,6 +20,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Module with error definitions for all
 //! struct and function in the model.
 
+use crate::Float;
 use thiserror::Error;
 
 /// General errors gathering all errors that can be
@@ -106,9 +107,25 @@ pub enum SearchError {
     OutOfBounds,
 }
 
-/// Errors related to parcel simulation.
+/// Errors related to parcel handling.
 #[derive(Error, Debug)]
 pub enum ParcelError {
+    #[error("Error while doing thermodynamic computation, check your input data: {0}")]
+    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
+
+    #[error("Error while accessing environmental variable: {0}")]
+    EnvironmentAccess(#[from] EnvironmentError),
+
+    #[error("Error while handling the file: {0}")]
+    FileHandling(#[from] std::io::Error),
+
+    #[error("Parcel released from N{0} E{1} has stopped its ascent with error: {2} Check your configuration.")]
+    AscentStopped(Float, Float, ParcelSimulationError),
+}
+
+/// Errors related to parcel simulation.
+#[derive(Error, Debug)]
+pub enum ParcelSimulationError {
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
     UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
 
