@@ -27,14 +27,10 @@ mod runge_kutta;
 
 use runge_kutta::RungeKuttaDynamics;
 use std::sync::Arc;
-
 use chrono::NaiveDateTime;
 use floccus::{mixing_ratio, virtual_temperature};
-
 use crate::{Float, errors::ParcelError, model::parcel::conv_params::compute_conv_params};
-
 use self::conv_params::ConvectiveParams;
-
 use super::{
     configuration::Config,
     environment::{

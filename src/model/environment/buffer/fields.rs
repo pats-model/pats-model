@@ -31,7 +31,6 @@ use eccodes::{
 use floccus::constants::G;
 use log::debug;
 use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
-
 use crate::{
     errors::{EnvironmentError, InputError},
     model::environment::{buffer::find_extent_edge_indices, Environment, LonLat},
