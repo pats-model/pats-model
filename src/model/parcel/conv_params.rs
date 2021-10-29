@@ -21,16 +21,135 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-use std::sync::Arc;
-use crate::{errors::ParcelError, model::environment::Environment};
 use super::ParcelState;
+use crate::{
+    errors::ParcelError,
+    model::environment::{EnvFields::VirtualTemperature, Environment},
+    Float,
+};
+use std::sync::Arc;
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
-pub struct ConvectiveParams {}
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
+pub struct ConvectiveParams {
+    // Parcel Top Height
+    parcel_top: Float,
+
+    // Parcel displacement from initial point
+    horztl_displac: (Float, Float),
+
+    // Parcel Maximum Vertical Velocity
+    max_vert_vel: Float,
+
+    // Condensation Level
+    // (similar to Convective Condensation Level)
+    condens_lvl: Option<Float>,
+
+    // Level of Free Convection
+    lfc: Option<Float>,
+
+    // Equilibrium Level
+    el: Option<Float>,
+
+    // Convective Available Potential Energy
+    cape: Option<Float>,
+
+    // Convective Inhibition
+    cin: Option<Float>,
+}
 
 pub(super) fn compute_conv_params(
     parcel_log: &Vec<ParcelState>,
     environment: &Arc<Environment>,
 ) -> Result<ConvectiveParams, ParcelError> {
-    Ok(ConvectiveParams {})
+    let mut result_params = ConvectiveParams::default();
+
+    result_params.update_displacements(parcel_log);
+    result_params.update_levels(parcel_log, environment)?;
+
+    Ok(result_params)
+}
+
+impl ConvectiveParams {
+    fn update_displacements(&mut self, parcel_log: &Vec<ParcelState>) {
+        self.parcel_top = parcel_log.last().unwrap().position.z;
+
+        self.horztl_displac = (
+            parcel_log.last().unwrap().position.x - parcel_log.first().unwrap().position.x,
+            parcel_log.last().unwrap().position.y - parcel_log.first().unwrap().position.y,
+        );
+
+        self.max_vert_vel = parcel_log
+            .iter()
+            .max_by(|x, y| {
+                x.velocity
+                    .z
+                    .partial_cmp(&y.velocity.z)
+                    .expect("Float comparison failed")
+            })
+            .expect("Parcel log is empty")
+            .velocity
+            .z;
+    }
+
+    fn update_levels(
+        &mut self,
+        parcel_log: &Vec<ParcelState>,
+        environment: &Arc<Environment>,
+    ) -> Result<(), ParcelError> {
+        // searched levels are subsequent and interdependent, so we look for them in loops
+        // iterating from log beginning so from ascent bottom
+        let mut current_step = 0;
+
+        for (i, step) in parcel_log.iter().enumerate() {
+            // first time this is true is condensation level
+            if step.mxng_rto >= step.satr_mxng_rto {
+                self.condens_lvl = Some(step.position.z);
+                current_step = i;
+                break;
+            }
+        }
+
+        if let Some(_) = self.condens_lvl {
+            // we check the condensation level as it might be a level of free convection
+            for (i, step) in parcel_log.iter().skip(current_step).enumerate() {
+                let env_vrt_temp = environment.get_field_value(
+                    step.position.x,
+                    step.position.y,
+                    step.position.z,
+                    VirtualTemperature,
+                )?;
+
+                // first time this is true is LFC
+                if step.vrt_temp >= env_vrt_temp {
+                    self.lfc = Some(step.position.z);
+                    current_step = i;
+                    break;
+                }
+            }
+        }
+
+        if let Some(_) = self.lfc {
+            // start checking from level after LFC for rare case when virtual temperatures are equal
+            for step in parcel_log.iter().skip(current_step + 1) {
+                let env_vrt_temp = environment.get_field_value(
+                    step.position.x,
+                    step.position.y,
+                    step.position.z,
+                    VirtualTemperature,
+                )?;
+
+                // first time this is true is LFC
+                if step.vrt_temp <= env_vrt_temp {
+                    self.el = Some(step.position.z);
+                    break;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn update_thermodynamic_vars(parcel_log: &Vec<ParcelState>, environment: &Arc<Environment>) {
+        
+    }
 }
