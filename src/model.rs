@@ -223,9 +223,11 @@ fn save_conv_params(convective_params_list: Vec<ConvectiveParams>) -> Result<(),
     let mut out_file = csv::Writer::from_path(out_path)?;
 
     out_file.write_record(&[
-        "LonLat",
+        "Lon",
+        "Lat",
         "TopHeight",   
-        "HorizontalDisplacement",
+        "xHorizontalDisplacement",
+        "yHorizontalDisplacement",
         "maxVerticalVelocity",
         "condensationLevel",
         "levelOfFreeConvection",

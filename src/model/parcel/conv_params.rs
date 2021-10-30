@@ -33,13 +33,15 @@ use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize)]
 pub struct ConvectiveParams {
-    parcel_start_coords: (Float, Float),
+    start_lon: Float,
+    start_lat: Float,
 
     // Parcel Top Height
     parcel_top: Float,
 
     // Parcel displacement from initial point
-    horztl_displac: (Float, Float),
+    x_displac: Float,
+    y_displac: Float,
 
     // Parcel Maximum Vertical Velocity
     max_vert_vel: Float,
@@ -68,10 +70,13 @@ pub(super) fn compute_conv_params(
     let mut result_params = ConvectiveParams::default();
 
     // add parcel identification
-    result_params.parcel_start_coords = environment.projection.inverse_project(
+    let parcel_start_coords = environment.projection.inverse_project(
         parcel_log.first().unwrap().position.x,
         parcel_log.first().unwrap().position.y,
     );
+
+    result_params.start_lon = parcel_start_coords.0;
+    result_params.start_lat = parcel_start_coords.1;
 
     // get environmental virtual temperature along parcel trace
     // to avoid calls to Environment
@@ -88,10 +93,10 @@ impl ConvectiveParams {
     fn update_displacements(&mut self, parcel_log: &Vec<ParcelState>) {
         self.parcel_top = parcel_log.last().unwrap().position.z;
 
-        self.horztl_displac = (
-            parcel_log.last().unwrap().position.x - parcel_log.first().unwrap().position.x,
-            parcel_log.last().unwrap().position.y - parcel_log.first().unwrap().position.y,
-        );
+        self.x_displac =
+            parcel_log.last().unwrap().position.x - parcel_log.first().unwrap().position.x;
+        self.y_displac =
+            parcel_log.last().unwrap().position.y - parcel_log.first().unwrap().position.y;
 
         self.max_vert_vel = parcel_log
             .iter()
