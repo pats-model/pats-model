@@ -27,9 +27,11 @@ use crate::{
     model::environment::{EnvFields::VirtualTemperature, Environment},
     Float,
 };
+use floccus::constants::G;
+use serde::Serialize;
 use std::sync::Arc;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize)]
 pub struct ConvectiveParams {
     // Parcel Top Height
     parcel_top: Float,
@@ -63,8 +65,11 @@ pub(super) fn compute_conv_params(
 ) -> Result<ConvectiveParams, ParcelError> {
     let mut result_params = ConvectiveParams::default();
 
+    let env_vrt_tmp = get_env_vtemp(parcel_log, environment)?;
+
     result_params.update_displacements(parcel_log);
-    result_params.update_levels(parcel_log, environment)?;
+    result_params.update_levels(parcel_log, &env_vrt_tmp)?;
+    result_params.update_thermodynamic_vars(parcel_log, &env_vrt_tmp);
 
     Ok(result_params)
 }
@@ -94,35 +99,28 @@ impl ConvectiveParams {
     fn update_levels(
         &mut self,
         parcel_log: &Vec<ParcelState>,
-        environment: &Arc<Environment>,
+        env_vrt_tmp: &Vec<Float>,
     ) -> Result<(), ParcelError> {
         // searched levels are subsequent and interdependent, so we look for them in loops
         // iterating from log beginning so from ascent bottom
-        let mut current_step = 0;
+        let mut current_point = 0;
 
-        for (i, step) in parcel_log.iter().enumerate() {
+        for (i, point) in parcel_log.iter().enumerate() {
             // first time this is true is condensation level
-            if step.mxng_rto >= step.satr_mxng_rto {
-                self.condens_lvl = Some(step.position.z);
-                current_step = i;
+            if point.mxng_rto >= point.satr_mxng_rto {
+                self.condens_lvl = Some(point.position.z);
+                current_point = i;
                 break;
             }
         }
 
         if let Some(_) = self.condens_lvl {
             // we check the condensation level as it might be a level of free convection
-            for (i, step) in parcel_log.iter().skip(current_step).enumerate() {
-                let env_vrt_temp = environment.get_field_value(
-                    step.position.x,
-                    step.position.y,
-                    step.position.z,
-                    VirtualTemperature,
-                )?;
-
+            for (i, point) in parcel_log.iter().skip(current_point).enumerate() {
                 // first time this is true is LFC
-                if step.vrt_temp >= env_vrt_temp {
-                    self.lfc = Some(step.position.z);
-                    current_step = i;
+                if point.vrt_temp > env_vrt_tmp[i] {
+                    self.lfc = Some(point.position.z);
+                    current_point = i;
                     break;
                 }
             }
@@ -130,17 +128,10 @@ impl ConvectiveParams {
 
         if let Some(_) = self.lfc {
             // start checking from level after LFC for rare case when virtual temperatures are equal
-            for step in parcel_log.iter().skip(current_step + 1) {
-                let env_vrt_temp = environment.get_field_value(
-                    step.position.x,
-                    step.position.y,
-                    step.position.z,
-                    VirtualTemperature,
-                )?;
-
+            for (i, point) in parcel_log.iter().skip(current_point + 1).enumerate() {
                 // first time this is true is LFC
-                if step.vrt_temp <= env_vrt_temp {
-                    self.el = Some(step.position.z);
+                if point.vrt_temp <= env_vrt_tmp[i] {
+                    self.el = Some(point.position.z);
                     break;
                 }
             }
@@ -149,7 +140,76 @@ impl ConvectiveParams {
         Ok(())
     }
 
-    fn update_thermodynamic_vars(parcel_log: &Vec<ParcelState>, environment: &Arc<Environment>) {
-        
+    fn update_thermodynamic_vars(
+        &mut self,
+        parcel_log: &Vec<ParcelState>,
+        env_vrt_tmp: &Vec<Float>,
+    ) {
+        let mut lfc_id = 0;
+
+        // compute CIN if LFC is present
+        let mut cin: Float = 0.0;
+        if let Some(_) = self.lfc {
+            //we start from the 2nd point of parcel log to not go out of bounds
+            for (i, point) in parcel_log.iter().skip(1).enumerate() {
+                let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
+                let y_0 = (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
+
+                let delta_z = point.position.z - parcel_log[i - 1].position.z;
+
+                cin += ((y_0 + y_1) / 2.0) * delta_z;
+
+                if point.position.z == self.lfc.unwrap() {
+                    lfc_id = i;
+                    break;
+                }
+            }
+        }
+
+        self.cin = Some(-G * cin);
+
+        // compute CAPE if LFC and EL is present
+        let mut cape: Float = 0.0;
+        if let Some(_) = self.lfc {
+            if let Some(_) = self.el {
+                // we start integration from LFC
+                for (i, point) in parcel_log.iter().skip(lfc_id + 1).enumerate() {
+                    let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
+                    let y_0 =
+                        (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
+
+                    let delta_z = point.position.z - parcel_log[i - 1].position.z;
+
+                    cape += ((y_0 + y_1) / 2.0) * delta_z;
+
+                    if point.position.z == self.el.unwrap() {
+                        break;
+                    }
+                }
+            }
+        }
+
+        self.cape = Some(G * cape);
     }
+}
+
+fn get_env_vtemp(
+    parcel_log: &Vec<ParcelState>,
+    environment: &Arc<Environment>,
+) -> Result<Vec<Float>, ParcelError> {
+    let env_vtemp: Result<Vec<_>, _> = parcel_log
+        .iter()
+        .map(|pst| {
+            environment.get_field_value(
+                pst.position.x,
+                pst.position.y,
+                pst.position.z,
+                VirtualTemperature,
+            )
+        })
+        .collect();
+
+    let env_temp = env_vtemp?;
+
+    Ok(env_temp)
 }
