@@ -115,7 +115,9 @@ impl ConvectiveParams {
         // iterating from log beginning so from ascent bottom
         let mut current_point = 0;
 
-        for (i, point) in parcel_log.iter().enumerate() {
+        for i in 0..parcel_log.len() {
+            let point = parcel_log[i];
+
             // first time this is true is condensation level
             if point.mxng_rto >= point.satr_mxng_rto {
                 self.condens_lvl = Some(point.position.z);
@@ -126,7 +128,9 @@ impl ConvectiveParams {
 
         if let Some(_) = self.condens_lvl {
             // we check the condensation level as it might be a level of free convection
-            for (i, point) in parcel_log.iter().skip(current_point).enumerate() {
+            for i in current_point..parcel_log.len() {
+                let point = parcel_log[i];
+
                 // first time this is true is LFC
                 if point.vrt_temp > env_vrt_tmp[i] {
                     self.lfc = Some(point.position.z);
@@ -138,7 +142,9 @@ impl ConvectiveParams {
 
         if let Some(_) = self.lfc {
             // start checking from level after LFC for rare case when virtual temperatures are equal
-            for (i, point) in parcel_log.iter().skip(current_point + 1).enumerate() {
+            for i in (current_point + 1)..parcel_log.len() {
+                let point = parcel_log[i];
+
                 // first time this is true is LFC
                 if point.vrt_temp <= env_vrt_tmp[i] {
                     self.el = Some(point.position.z);
@@ -161,7 +167,9 @@ impl ConvectiveParams {
         let mut cin: Float = 0.0;
         if let Some(_) = self.lfc {
             //we start from the 2nd point of parcel log to not go out of bounds
-            for (i, point) in parcel_log.iter().skip(1).enumerate() {
+            for i in 1..parcel_log.len() {
+                let point = parcel_log[i];
+
                 let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
                 let y_0 = (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
 
@@ -183,7 +191,9 @@ impl ConvectiveParams {
         if let Some(_) = self.lfc {
             if let Some(_) = self.el {
                 // we start integration from LFC
-                for (i, point) in parcel_log.iter().skip(lfc_id + 1).enumerate() {
+                for i in (lfc_id + 1)..parcel_log.len() {
+                    let point = parcel_log[i];
+
                     let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
                     let y_0 =
                         (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
