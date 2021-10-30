@@ -44,6 +44,7 @@ csv = "1.1.6"
 indicatif = "0.16.2"
 
 [features]
+default = ["double_precision"]
 double_precision = ["floccus/double_precision"]
 3d = []
 raw_output = []
