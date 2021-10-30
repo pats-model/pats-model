@@ -33,6 +33,8 @@ use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize)]
 pub struct ConvectiveParams {
+    parcel_start_coords: (Float, Float),
+
     // Parcel Top Height
     parcel_top: Float,
 
@@ -65,6 +67,14 @@ pub(super) fn compute_conv_params(
 ) -> Result<ConvectiveParams, ParcelError> {
     let mut result_params = ConvectiveParams::default();
 
+    // add parcel identification
+    result_params.parcel_start_coords = environment.projection.inverse_project(
+        parcel_log.first().unwrap().position.x,
+        parcel_log.first().unwrap().position.y,
+    );
+
+    // get environmental virtual temperature along parcel trace
+    // to avoid calls to Environment
     let env_vrt_tmp = get_env_vtemp(parcel_log, environment)?;
 
     result_params.update_displacements(parcel_log);

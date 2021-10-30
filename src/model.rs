@@ -35,6 +35,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info};
 use ndarray::Array1;
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::io::Error;
 use std::{
     fs,
     path::Path,
@@ -103,6 +104,11 @@ pub fn main() -> Result<(), ModelError> {
     }
 
     parcels_bar.finish_with_message("All parcels done");
+    info!("Writing output");
+
+    //write convective parameters to file
+    save_conv_params(parcels_params)?;
+
     Ok(())
 }
 
@@ -209,4 +215,30 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     }
 
     xy_coords
+}
+
+fn save_conv_params(convective_params_list: Vec<ConvectiveParams>) -> Result<(), Error> {
+    let out_path = Path::new("./output/model_convective_params.csv");
+
+    let mut out_file = csv::Writer::from_path(out_path)?;
+
+    out_file.write_record(&[
+        "LonLat",
+        "TopHeight",   
+        "HorizontalDisplacement",
+        "maxVerticalVelocity",
+        "condensationLevel",
+        "levelOfFreeConvection",
+        "equilibriumLevel",
+        "CAPE",
+        "CIN"
+    ])?;
+
+    for conv_params in convective_params_list {
+        out_file.serialize(conv_params)?;
+    }
+
+    out_file.flush()?;
+
+    Ok(())
 }
