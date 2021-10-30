@@ -169,7 +169,7 @@ impl<'a> RungeKuttaDynamics<'a> {
         debug!("Starting pseudoadiabatic ascent");
         debug!("Init state: {:?}", initial_state);
 
-        let pseudoadiabatic_scheme = PseudoAdiabaticScheme::new(initial_state, self.env);
+        let mut pseudoadiabatic_scheme = PseudoAdiabaticScheme::new(initial_state, self.env);
 
         loop {
             let ref_parcel = self.parcel_log.last().unwrap().clone();
@@ -234,6 +234,7 @@ impl<'a> RungeKuttaDynamics<'a> {
                 break;
             }
 
+            pseudoadiabatic_scheme.update_ref_state(&result_parcel);
             self.parcel_log.push(result_parcel);
         }
 
@@ -350,6 +351,16 @@ impl<'a> PseudoAdiabaticScheme<'a> {
             ref_mxng_rto: refrence.mxng_rto,
             ref_satr_mxng_rto: refrence.satr_mxng_rto,
         }
+    }
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    pub fn update_ref_state(&mut self, ref_state: &ParcelState) {
+        self.ref_temp = ref_state.temp;
+        self.ref_pres = ref_state.pres;
+        self.ref_mxng_rto = ref_state.mxng_rto;
+        self.ref_satr_mxng_rto = ref_state.satr_mxng_rto;
     }
 
     /// (TODO: What it is)
