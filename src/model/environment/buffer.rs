@@ -65,8 +65,11 @@ impl Environment {
             return Err(InputError::IncorrectKeyType("distinctLongitudes"));
         }
 
+        // Values array in GRIB has (0,0) point at north pole
         distinct_latitudes
             .sort_by(|a, b| a.partial_cmp(b).expect("Sorting distinct latitudes failed"));
+        distinct_latitudes.reverse();
+
         distinct_longitudes.sort_by(|a, b| {
             a.partial_cmp(b)
                 .expect("Sorting distinct longitudes failed")
@@ -112,8 +115,8 @@ fn find_extent_edge_indices(
     east_north: (Float, Float),
 ) -> ((usize, usize), (usize, usize)) {
     let edge_lats = (
-        bisection::find_left_closest(&distinct_lonlats.1, &west_south.1).unwrap(),
-        bisection::find_right_closest(&distinct_lonlats.1, &east_north.1).unwrap(),
+        bisection::find_left_closest(&distinct_lonlats.1, &east_north.1).unwrap(),
+        bisection::find_right_closest(&distinct_lonlats.1, &west_south.1).unwrap(),
     );
     let edge_lons = (
         bisection::find_left_closest(
@@ -131,7 +134,7 @@ fn find_extent_edge_indices(
 }
 
 /// Converts the longitude in convention used by model
-/// (longitude between -180 and 180) to longitude 
+/// (longitude between -180 and 180) to longitude
 /// in GRIB convention (any positive integer).
 fn convert_to_grib_longitudes(longitude: Float) -> Float {
     if longitude < 0.0 {

@@ -135,7 +135,8 @@ impl Environment {
             return Err(InputError::IncorrectKeyType("values"));
         };
 
-        let result_data = Array2::from_shape_vec(shape, data_level)?;
+        let result_data = Array2::from_shape_vec((shape.1,shape.0), data_level)?;
+        let result_data = result_data.reversed_axes();
         let result_data = result_data.mapv(|v| v as Float);
 
         Ok(result_data)
