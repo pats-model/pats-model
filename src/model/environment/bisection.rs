@@ -31,24 +31,35 @@ fn binary_search<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, SearchError
         return Err(SearchError::EmptyArray);
     }
 
-    if x < array.first().unwrap() {
-        return Err(SearchError::OutOfBounds);
-    }
-
-    if x > array.last().unwrap() {
+    if x < array.first().unwrap() && x < array.last().unwrap()
+        || x > array.first().unwrap() && x > array.last().unwrap()
+    {
         return Err(SearchError::OutOfBounds);
     }
 
     let mut lo = 0;
     let mut hi = array.len() - 1;
 
-    while lo < hi {
-        let mid = (lo + hi) / 2;
+    // if the array is sorted descendingly we use a function with reversed signs
+    if array.first().unwrap() < array.last().unwrap() {
+        while lo < hi {
+            let mid = (lo + hi) / 2;
 
-        if array[mid] >= *x {
-            hi = mid;
-        } else {
-            lo = mid + 1;
+            if array[mid] >= *x {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+    } else {
+        while lo < hi {
+            let mid = (lo + hi) / 2;
+
+            if array[mid] <= *x {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
         }
     }
 
@@ -60,10 +71,18 @@ fn binary_search<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, SearchError
 pub fn find_left_closest<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, SearchError> {
     let found_index = binary_search(array, x)?;
 
-    if array[found_index] <= *x {
-        Ok(found_index)
+    if array.first().unwrap() < array.last().unwrap() {
+        if array[found_index] <= *x {
+            Ok(found_index)
+        } else {
+            Ok(found_index - 1)
+        }
     } else {
-        Ok(found_index - 1)
+        if array[found_index] >= *x {
+            Ok(found_index)
+        } else {
+            Ok(found_index - 1)
+        }
     }
 }
 
@@ -72,9 +91,17 @@ pub fn find_left_closest<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, Sea
 pub fn find_right_closest<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, SearchError> {
     let found_index = binary_search(array, x)?;
 
-    if array[found_index] >= *x {
-        Ok(found_index)
+    if array.first().unwrap() < array.last().unwrap() {
+        if array[found_index] >= *x {
+            Ok(found_index)
+        } else {
+            Ok(found_index - 1)
+        }
     } else {
-        Ok(found_index - 1)
+        if array[found_index] <= *x {
+            Ok(found_index)
+        } else {
+            Ok(found_index - 1)
+        }
     }
 }
