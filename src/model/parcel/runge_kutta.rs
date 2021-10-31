@@ -394,7 +394,7 @@ impl<'a> PseudoAdiabaticScheme<'a> {
 
         // if saturation mixing ratio dropped we bring the parcel back to
         // 100% saturation
-        if updated_state.satr_mxng_rto > updated_state.mxng_rto {
+        if updated_state.satr_mxng_rto < updated_state.mxng_rto {
             updated_state.mxng_rto = updated_state.satr_mxng_rto;
         }
 
