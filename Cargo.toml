@@ -37,7 +37,7 @@ env_logger = "0.9.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 rustc-hash = "1.1.0"
 eccodes = "0.5.4"
-floccus = "0.2.3"
+floccus = "0.2.4"
 nalgebra = "0.29.0"
 cap = "0.1.0"
 csv = "1.1.6"

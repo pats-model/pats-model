@@ -314,6 +314,9 @@ impl<'a> AdiabaticScheme<'a> {
         if updated_state.temp < 253.0 {
             // if the temperature is very low use dedicated formula
             satr_vap_pres = vapour_pressure::buck2(updated_state.temp, updated_state.pres)?;
+        } else if updated_state.temp < 194.0 {
+            // if the temperature is very very low use more expensive dedicated formula
+            satr_vap_pres = vapour_pressure::wexler2(updated_state.temp)?;
         } else {
             // else use usual buck formula over water
             satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
@@ -385,6 +388,9 @@ impl<'a> PseudoAdiabaticScheme<'a> {
         if updated_state.temp < 253.0 {
             // if the temperature is very low use dedicated formula
             satr_vap_pres = vapour_pressure::buck2(updated_state.temp, updated_state.pres)?;
+        } else if updated_state.temp < 194.0 {
+            // if the temperature is very very low use more expensive dedicated formula
+            satr_vap_pres = vapour_pressure::wexler2(updated_state.temp)?;
         } else {
             // else use usual buck formula over water
             satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
