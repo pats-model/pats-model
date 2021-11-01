@@ -310,7 +310,7 @@ impl<'a> AdiabaticScheme<'a> {
             (self.lambda / updated_state.pres.powf(1.0 - self.gamma)).powf(1.0 / self.gamma);
 
         let satr_vap_pres;
-        if updated_state.temp > 253.0 {
+        if updated_state.temp > 273.15 {
             // for most ranges use usual buck formula over water
             satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
         } else if updated_state.temp > 193.0 {
@@ -384,7 +384,7 @@ impl<'a> PseudoAdiabaticScheme<'a> {
         updated_state.temp = self.iterate_to_temperature(updated_state.pres);
 
         let satr_vap_pres;
-        if updated_state.temp > 253.0 {
+        if updated_state.temp > 273.15 {
             // for most ranges use usual buck formula over water
             satr_vap_pres = vapour_pressure::buck1(updated_state.temp, updated_state.pres)?;
         } else if updated_state.temp > 193.0 {
