@@ -190,7 +190,7 @@ fn generate_domain_projection(domain: &Domain) -> Result<LambertConicConformal, 
     let lat_2;
 
     if sides.0 < 0.1 {
-        lon_0 = domain.ref_lon
+        lon_0 = domain.ref_lon;
     } else {
         lon_0 = approx_central_lon(domain.ref_lon, domain.ref_lat, sides.0);
     }

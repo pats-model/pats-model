@@ -27,6 +27,7 @@ use crate::{
     model::environment::{EnvFields::VirtualTemperature, Environment},
     Float,
 };
+use float_cmp::approx_eq;
 use floccus::constants::G;
 use serde::Serialize;
 use std::sync::Arc;
@@ -70,7 +71,7 @@ pub struct ConvectiveParams {
 ///
 /// (Why it is neccessary)
 pub(super) fn compute_conv_params(
-    parcel_log: &Vec<ParcelState>,
+    parcel_log: &[ParcelState],
     environment: &Arc<Environment>,
 ) -> Result<ConvectiveParams, ParcelError> {
     let mut result_params = ConvectiveParams::default();
@@ -89,7 +90,7 @@ pub(super) fn compute_conv_params(
     let env_vrt_tmp = get_env_vtemp(parcel_log, environment)?;
 
     result_params.update_displacements(parcel_log);
-    result_params.update_levels(parcel_log, &env_vrt_tmp)?;
+    result_params.update_levels(parcel_log, &env_vrt_tmp);
     result_params.update_thermodynamic_vars(parcel_log, &env_vrt_tmp);
 
     Ok(result_params)
@@ -99,7 +100,7 @@ impl ConvectiveParams {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn update_displacements(&mut self, parcel_log: &Vec<ParcelState>) {
+    fn update_displacements(&mut self, parcel_log: &[ParcelState]) {
         self.parcel_top = parcel_log.last().unwrap().position.z;
 
         self.x_displac =
@@ -123,43 +124,39 @@ impl ConvectiveParams {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn update_levels(
-        &mut self,
-        parcel_log: &Vec<ParcelState>,
-        env_vrt_tmp: &Vec<Float>,
-    ) -> Result<(), ParcelError> {
+    fn update_levels(&mut self, parcel_log: &[ParcelState], env_vrt_tmp: &[Float]) {
         // searched levels are subsequent and interdependent, so we look for them in loops
         // iterating from log beginning so from ascent bottom
-        let mut current_point = 0;
+        let mut ccl_index = 0;
 
-        for i in 0..parcel_log.len() {
-            let point = parcel_log[i];
-
+        for (i, point) in parcel_log.iter().enumerate() {
             // first time this is true is condensation level
             if point.mxng_rto >= point.satr_mxng_rto {
                 self.condens_lvl = Some(point.position.z);
-                current_point = i;
+                ccl_index = i;
                 break;
             }
         }
 
-        if let Some(_) = self.condens_lvl {
+        let mut lfc_index = 0;
+
+        if self.condens_lvl.is_some() {
             // we check the condensation level as it might be a level of free convection
-            for i in current_point..parcel_log.len() {
+            for i in ccl_index..parcel_log.len() {
                 let point = parcel_log[i];
 
                 // first time this is true is LFC
                 if point.vrt_temp > env_vrt_tmp[i] {
                     self.lfc = Some(point.position.z);
-                    current_point = i;
+                    lfc_index = i;
                     break;
                 }
             }
         }
 
-        if let Some(_) = self.lfc {
+        if self.lfc.is_some() {
             // start checking from level after LFC for rare case when virtual temperatures are equal
-            for i in (current_point + 1)..parcel_log.len() {
+            for i in (lfc_index + 1)..parcel_log.len() {
                 let point = parcel_log[i];
 
                 // first time this is true is LFC
@@ -169,23 +166,17 @@ impl ConvectiveParams {
                 }
             }
         }
-
-        Ok(())
     }
 
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    fn update_thermodynamic_vars(
-        &mut self,
-        parcel_log: &Vec<ParcelState>,
-        env_vrt_tmp: &Vec<Float>,
-    ) {
+    fn update_thermodynamic_vars(&mut self, parcel_log: &[ParcelState], env_vrt_tmp: &[Float]) {
         let mut lfc_id = 0;
 
         // compute CIN if LFC is present
         let mut cin: Float = 0.0;
-        if let Some(_) = self.lfc {
+        if self.lfc.is_some() {
             //we start from the 2nd point of parcel log to not go out of bounds
             for i in 1..parcel_log.len() {
                 let point = parcel_log[i];
@@ -197,7 +188,7 @@ impl ConvectiveParams {
 
                 cin += ((y_0 + y_1) / 2.0) * delta_z;
 
-                if point.position.z == self.lfc.unwrap() {
+                if approx_eq!(Float, point.position.z, self.lfc.unwrap()) {
                     lfc_id = i;
                     break;
                 }
@@ -208,23 +199,20 @@ impl ConvectiveParams {
 
         // compute CAPE if LFC and EL is present
         let mut cape: Float = 0.0;
-        if let Some(_) = self.lfc {
-            if let Some(_) = self.el {
-                // we start integration from LFC
-                for i in (lfc_id + 1)..parcel_log.len() {
-                    let point = parcel_log[i];
+        if self.lfc.is_some() && self.el.is_some() {
+            // we start integration from LFC
+            for i in (lfc_id + 1)..parcel_log.len() {
+                let point = parcel_log[i];
 
-                    let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
-                    let y_0 =
-                        (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
+                let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
+                let y_0 = (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
 
-                    let delta_z = point.position.z - parcel_log[i - 1].position.z;
+                let delta_z = point.position.z - parcel_log[i - 1].position.z;
 
-                    cape += ((y_0 + y_1) / 2.0) * delta_z;
+                cape += ((y_0 + y_1) / 2.0) * delta_z;
 
-                    if point.position.z == self.el.unwrap() {
-                        break;
-                    }
+                if approx_eq!(Float, point.position.z, self.el.unwrap()) {
+                    break;
                 }
             }
         }
@@ -237,7 +225,7 @@ impl ConvectiveParams {
 ///
 /// (Why it is neccessary)
 fn get_env_vtemp(
-    parcel_log: &Vec<ParcelState>,
+    parcel_log: &[ParcelState],
     environment: &Arc<Environment>,
 ) -> Result<Vec<Float>, ParcelError> {
     let env_vtemp: Result<Vec<_>, _> = parcel_log
@@ -252,7 +240,5 @@ fn get_env_vtemp(
         })
         .collect();
 
-    let env_temp = env_vtemp?;
-
-    Ok(env_temp)
+    Ok(env_vtemp?)
 }

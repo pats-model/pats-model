@@ -21,15 +21,15 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-use std::{io::Error, path::Path, sync::Arc};
-use crate::model::environment::Environment;
 use super::ParcelState;
+use crate::model::environment::Environment;
+use std::{io::Error, path::Path, sync::Arc};
 
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
 pub(super) fn save_parcel_log(
-    parcel_log: &Vec<ParcelState>,
+    parcel_log: &[ParcelState],
     environment: &Arc<Environment>,
 ) -> Result<(), Error> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap());

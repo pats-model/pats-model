@@ -46,6 +46,7 @@ pub const WGS84_H: Float =
 ///
 ///Computed with first 6 terms of infinite series:
 /// $$ C = \pi(a+b)\sum_{n=0}^{+\infty}\binom{0.5}{n}h^n $$
+#[allow(clippy::doc_markdown)]
 pub const NS_C_EARTH: Float = PI
     * (WGS84_A + WGS84_B)
     * (1.0

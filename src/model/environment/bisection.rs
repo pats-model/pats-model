@@ -77,12 +77,10 @@ pub fn find_left_closest<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, Sea
         } else {
             Ok(found_index - 1)
         }
+    } else if array[found_index] >= *x {
+        Ok(found_index)
     } else {
-        if array[found_index] >= *x {
-            Ok(found_index)
-        } else {
-            Ok(found_index - 1)
-        }
+        Ok(found_index - 1)
     }
 }
 
@@ -97,11 +95,9 @@ pub fn find_right_closest<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, Se
         } else {
             Ok(found_index - 1)
         }
+    } else if array[found_index] <= *x {
+        Ok(found_index)
     } else {
-        if array[found_index] <= *x {
-            Ok(found_index)
-        } else {
-            Ok(found_index - 1)
-        }
+        Ok(found_index - 1)
     }
 }

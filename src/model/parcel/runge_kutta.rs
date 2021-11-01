@@ -47,8 +47,7 @@ impl<'a> RungeKuttaDynamics<'a> {
         timestep: Float,
         environment: &'a Arc<Environment>,
     ) -> Self {
-        let mut parcel_log = vec![];
-        parcel_log.push(initial_state);
+        let parcel_log = vec![initial_state];
 
         RungeKuttaDynamics {
             timestep,
@@ -90,7 +89,7 @@ impl<'a> RungeKuttaDynamics<'a> {
         let adiabatic_scheme = AdiabaticScheme::new(initial_state, self.env);
 
         loop {
-            let ref_parcel = self.parcel_log.last().unwrap().clone();
+            let ref_parcel = *self.parcel_log.last().unwrap();
 
             // holographic parcel is a virtual parcel that is moved
             // around for RK4 computations but doesn't change its
@@ -162,7 +161,7 @@ impl<'a> RungeKuttaDynamics<'a> {
     fn ascent_pseudoadiabatically(&mut self) -> Result<(), ParcelSimulationError> {
         let initial_state = self.parcel_log.last().unwrap();
 
-        if initial_state.velocity.z <= 0.0 || initial_state.mxng_rto < 0.000001 {
+        if initial_state.velocity.z <= 0.0 || initial_state.mxng_rto < 0.000_001 {
             return Ok(());
         }
 
@@ -172,7 +171,7 @@ impl<'a> RungeKuttaDynamics<'a> {
         let mut pseudoadiabatic_scheme = PseudoAdiabaticScheme::new(initial_state, self.env);
 
         loop {
-            let ref_parcel = self.parcel_log.last().unwrap().clone();
+            let ref_parcel = *self.parcel_log.last().unwrap();
 
             // holographic parcel is a virtual parcel that is moved
             // around for RK4 computations but doesn't change its
@@ -230,7 +229,7 @@ impl<'a> RungeKuttaDynamics<'a> {
 
             result_parcel = pseudoadiabatic_scheme.state_at_position(&result_parcel)?;
 
-            if result_parcel.velocity.z <= 0.0 || result_parcel.mxng_rto < 0.000001 {
+            if result_parcel.velocity.z <= 0.0 || result_parcel.mxng_rto < 0.000_001 {
                 break;
             }
 
@@ -298,7 +297,7 @@ impl<'a> AdiabaticScheme<'a> {
         &self,
         ref_state: &ParcelState,
     ) -> Result<ParcelState, ParcelSimulationError> {
-        let mut updated_state = ref_state.clone();
+        let mut updated_state = *ref_state;
 
         updated_state.pres = self.env.get_field_value(
             ref_state.position.x,
@@ -373,7 +372,7 @@ impl<'a> PseudoAdiabaticScheme<'a> {
         &self,
         ref_state: &ParcelState,
     ) -> Result<ParcelState, ParcelSimulationError> {
-        let mut updated_state = ref_state.clone();
+        let mut updated_state = *ref_state;
 
         updated_state.pres = self.env.get_field_value(
             ref_state.position.x,

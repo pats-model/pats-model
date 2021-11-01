@@ -23,16 +23,12 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! <https://pubs.er.usgs.gov/publication/pp1395>
 
 #[cfg(feature = "double_precision")]
-use std::f64::{
-    consts::{FRAC_PI_2, FRAC_PI_4},
-    EPSILON,
-};
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
 
 #[cfg(not(feature = "double_precision"))]
-use std::f32::{
-    consts::{FRAC_PI_2, FRAC_PI_4},
-    EPSILON,
-};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+
+use float_cmp::approx_eq;
 
 use crate::constants::{WGS84_A, WGS84_E};
 use crate::{errors::ProjectionError, Float};
@@ -51,7 +47,7 @@ impl LambertConicConformal {
     /// and two standard parallels.
     /// Defaults the reference latitude to 0.0
     pub fn new(lon_0: Float, lat_1: Float, lat_2: Float) -> Result<Self, ProjectionError> {
-        if (lat_1 - lat_2).abs() < EPSILON {
+        if approx_eq!(Float, lat_1, lat_2) {
             return Err(ProjectionError::IncorrectParams(
                 "standard parallels cannot be equal",
             ));
