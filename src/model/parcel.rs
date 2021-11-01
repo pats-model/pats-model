@@ -43,6 +43,9 @@ use super::{
 #[cfg(feature = "3d")]
 use super::environment::SurfaceFields::{UWind, VWind};
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 struct ParcelState {
     datetime: NaiveDateTime,
@@ -90,6 +93,9 @@ pub fn deploy(
     Ok(parcel_params)
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn prepare_parcel(
     start_coords: (Float, Float),
     config: &Arc<Config>,

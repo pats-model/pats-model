@@ -221,6 +221,9 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     xy_coords
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn save_conv_params(convective_params_list: Vec<ConvectiveParams>) -> Result<(), Error> {
     let out_path = Path::new("./output/model_convective_params.csv");
 
@@ -229,7 +232,7 @@ fn save_conv_params(convective_params_list: Vec<ConvectiveParams>) -> Result<(),
     out_file.write_record(&[
         "Lon",
         "Lat",
-        "TopHeight",   
+        "TopHeight",
         "xHorizontalDisplacement",
         "yHorizontalDisplacement",
         "maxVerticalVelocity",
@@ -237,7 +240,7 @@ fn save_conv_params(convective_params_list: Vec<ConvectiveParams>) -> Result<(),
         "levelOfFreeConvection",
         "equilibriumLevel",
         "CAPE",
-        "CIN"
+        "CIN",
     ])?;
 
     for conv_params in convective_params_list {

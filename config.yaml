@@ -18,4 +18,4 @@ input:
     - "./data/era5_surface.grib"
 resources:    
   threads: 8                    # number of threads the model should use
-  memory: 8196                  # memory cap for model in MB
+  memory: 8192                  # memory cap for model in MB

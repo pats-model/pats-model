@@ -25,6 +25,9 @@ use std::{io::Error, path::Path, sync::Arc};
 use crate::model::environment::Environment;
 use super::ParcelState;
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 pub(super) fn save_parcel_log(
     parcel_log: &Vec<ParcelState>,
     environment: &Arc<Environment>,
@@ -77,6 +80,9 @@ pub(super) fn save_parcel_log(
     Ok(())
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn construct_parcel_id(initial_state: &ParcelState) -> String {
     let time_stamp = initial_state.datetime.format("%Y-%m-%dT%H%M%S").to_string();
     let position_stamp = format!(

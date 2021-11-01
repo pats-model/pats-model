@@ -31,6 +31,9 @@ use floccus::constants::G;
 use serde::Serialize;
 use std::sync::Arc;
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize)]
 pub struct ConvectiveParams {
     start_lon: Float,
@@ -63,6 +66,9 @@ pub struct ConvectiveParams {
     cin: Option<Float>,
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 pub(super) fn compute_conv_params(
     parcel_log: &Vec<ParcelState>,
     environment: &Arc<Environment>,
@@ -90,6 +96,9 @@ pub(super) fn compute_conv_params(
 }
 
 impl ConvectiveParams {
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
     fn update_displacements(&mut self, parcel_log: &Vec<ParcelState>) {
         self.parcel_top = parcel_log.last().unwrap().position.z;
 
@@ -111,6 +120,9 @@ impl ConvectiveParams {
             .z;
     }
 
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
     fn update_levels(
         &mut self,
         parcel_log: &Vec<ParcelState>,
@@ -161,6 +173,9 @@ impl ConvectiveParams {
         Ok(())
     }
 
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
     fn update_thermodynamic_vars(
         &mut self,
         parcel_log: &Vec<ParcelState>,
@@ -218,6 +233,9 @@ impl ConvectiveParams {
     }
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn get_env_vtemp(
     parcel_log: &Vec<ParcelState>,
     environment: &Arc<Environment>,
