@@ -249,7 +249,15 @@ fn messages_to_array(
             return Err(InputError::IncorrectKeyType("values"));
         };
 
-        let lvl_vals = Array2::from_shape_vec(shape, lvl_vals)?;
+        // a bit of magic
+        // data values in GRIB are a vec of values row-by-row (x-axis is in WE direction)
+        // we want a Array2 of provided `shape` with x-axis in WE direction
+        // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
+        // and puts them in columns
+        // so we need to correctly split the data in GRIB vector into Array2 and then transpose
+        // that array to get axes along expected geographical directions 
+        let lvl_vals = Array2::from_shape_vec((shape.1,shape.0), lvl_vals)?;
+        let lvl_vals = lvl_vals.reversed_axes();
 
         sorted_data_levels.push((lvl_id, lvl_vals));
     }
