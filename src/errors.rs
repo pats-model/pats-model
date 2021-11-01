@@ -119,7 +119,7 @@ pub enum ParcelError {
     #[error("Error while handling the file: {0}")]
     FileHandling(#[from] std::io::Error),
 
-    #[error("Parcel released from N{0} E{1} has stopped its ascent with error: {2} Check your configuration.")]
+    #[error("Parcel released from N{0:.3} E{1:.3} has stopped its ascent with error: {2} Check your configuration.")]
     AscentStopped(Float, Float, ParcelSimulationError),
 }
 

@@ -103,7 +103,11 @@ pub fn main() -> Result<(), ModelError> {
         parcels_bar.inc(1);
     }
 
-    parcels_bar.finish_with_message("All parcels done");
+    // this is neccessary to make sure that all error messages
+    // are fully written to stdout before the progress bar updates
+    info!("");
+
+    parcels_bar.finish_with_message("All parcels finished");
     info!("Writing output");
 
     //write convective parameters to file
