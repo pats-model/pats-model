@@ -69,7 +69,7 @@ pub struct Domain {
     /// axis respectively. Parcels will not be released in the margins
     /// area, but the input data will be read there so that parcels can use it.
     /// 
-    /// Defaults to `10`. Cannot be less than `0.1`.
+    /// Defaults to `1.0`. Cannot be less than `0.1`.
     #[serde(default = "Domain::default_margins")]
     pub margins: (Float, Float),
 }
@@ -112,7 +112,7 @@ impl Domain {
     }
 
     fn default_margins() -> (Float, Float) {
-        (10.0, 10.0)
+        (1.0, 1.0)
     }
 }
 
