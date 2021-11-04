@@ -36,8 +36,8 @@ log = "0.4.14"
 env_logger = "0.9.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 rustc-hash = "1.1.0"
-eccodes = "0.5.4"
-floccus = "0.2.4"
+eccodes = "0.6.6"
+floccus = "0.3.5"
 nalgebra = "0.29.0"
 cap = "0.1.0"
 csv = "1.1.6"
@@ -55,4 +55,4 @@ double_precision = ["floccus/double_precision"]
 raw_output = []
 
 [package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "./src/html/docs-header.html" ]
+rustdoc-args = ["--html-in-header", "./src/html/docs-header.html"]

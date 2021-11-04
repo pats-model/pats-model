@@ -31,8 +31,7 @@ use crate::constants::{NS_C_EARTH, WE_C_EARTH};
 use crate::errors::InputError;
 use crate::model::environment::projection::LambertConicConformal;
 use crate::{errors::EnvironmentError, Float};
-use eccodes::codes_handle::{CodesHandle, KeyType, ProductKind::GRIB};
-use eccodes::FallibleIterator;
+use eccodes::{CodesHandle, FallibleIterator, KeyType, ProductKind::GRIB};
 use log::debug;
 use ndarray::{Array2, Array3};
 use rustc_hash::FxHashSet;
@@ -93,9 +92,9 @@ pub enum SurfaceFields {
     Dewpoint,
     Pressure,
     Height,
-    #[cfg(feature="3d")]
+    #[cfg(feature = "3d")]
     UWind,
-    #[cfg(feature="3d")]
+    #[cfg(feature = "3d")]
     VWind,
 }
 

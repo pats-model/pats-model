@@ -37,7 +37,7 @@ pub enum ModelError {
     Environment(#[from] EnvironmentError),
 
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
-    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
+    UnreasonableVariable(#[from] floccus::errors::InputError),
 
     #[error("Error while handling the file: {0}")]
     FileHandling(#[from] std::io::Error),
@@ -111,7 +111,7 @@ pub enum SearchError {
 #[derive(Error, Debug)]
 pub enum ParcelError {
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
-    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
+    UnreasonableVariable(#[from] floccus::errors::InputError),
 
     #[error("Error while accessing environmental variable: {0}")]
     EnvironmentAccess(#[from] EnvironmentError),
@@ -127,7 +127,7 @@ pub enum ParcelError {
 #[derive(Error, Debug)]
 pub enum ParcelSimulationError {
     #[error("Error while doing thermodynamic computation, check your input data: {0}")]
-    UnreasonableVariable(#[from] floccus::error_wrapper::InputError),
+    UnreasonableVariable(#[from] floccus::errors::InputError),
 
     #[error("Error while accessing environmental variable: {0}")]
     EnvironmentAccess(#[from] EnvironmentError),

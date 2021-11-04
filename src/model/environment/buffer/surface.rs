@@ -26,13 +26,10 @@ use crate::{
     Float,
 };
 use eccodes::{
-    codes_handle::{
-        CodesHandle,
-        KeyType::{FloatArray, Str},
-        KeyedMessage,
-        ProductKind::GRIB,
-    },
-    FallibleIterator,
+    CodesHandle, FallibleIterator,
+    KeyType::{FloatArray, Str},
+    KeyedMessage,
+    ProductKind::GRIB,
 };
 use floccus::constants::G;
 use log::debug;

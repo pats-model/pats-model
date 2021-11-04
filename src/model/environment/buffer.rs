@@ -29,12 +29,9 @@ use crate::{
     Float,
 };
 use eccodes::{
-    codes_handle::{
-        CodesHandle,
-        KeyType::{FloatArray, Int},
-        ProductKind::GRIB,
-    },
-    FallibleIterator,
+    CodesHandle, FallibleIterator,
+    KeyType::{FloatArray, Int},
+    ProductKind::GRIB,
 };
 
 impl Environment {

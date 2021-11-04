@@ -19,31 +19,28 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 //! Sub-module responsible for handling
 //! pressure level data buffering.
-use eccodes::{
-    codes_handle::{
-        CodesHandle,
-        KeyType::{FloatArray, Int, Str},
-        KeyedMessage,
-        ProductKind::GRIB,
-    },
-    FallibleIterator,
-};
-use floccus::constants::G;
-use log::debug;
-use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
 use crate::{
     errors::{EnvironmentError, InputError},
     model::environment::{buffer::find_extent_edge_indices, Environment, LonLat},
     Float,
 };
+use eccodes::{
+    CodesHandle, FallibleIterator,
+    KeyType::{FloatArray, Int, Str},
+    KeyedMessage,
+    ProductKind::GRIB,
+};
+use floccus::constants::G;
+use log::debug;
+use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
 
 impl Environment {
     /// Function to read pressure level data from GRIB input
     /// in extent covering domain and margins and buffer it.
-    /// 
+    ///
     /// Data from GRIB files can only be read in a whole
     /// GRIB domain, therefore it needs to be truncated.
-    /// 
+    ///
     /// Some useful variables are not provided by
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_fields(
@@ -100,7 +97,7 @@ impl Environment {
     /// Reads all values in GRIB file at specified level type
     /// of variable with given `short_name` and collects them
     /// into a 3d array.
-    /// 
+    ///
     /// In GRIB files data on each level is stored as a separate
     /// message. Those need to be collected and only then can be
     /// converted into a 3d array.
@@ -141,7 +138,7 @@ impl Environment {
 
     /// Creates a 3d array of pressure data of shape
     /// identical to other pressure level fields.
-    /// 
+    ///
     /// When data in GRIB file is provided on pressure levels
     /// the information about pressure at each level is only
     /// stored in message metadata. Thus, information what
@@ -255,8 +252,8 @@ fn messages_to_array(
         // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
         // and puts them in columns
         // so we need to correctly split the data in GRIB vector into Array2 and then transpose
-        // that array to get axes along expected geographical directions 
-        let lvl_vals = Array2::from_shape_vec((shape.1,shape.0), lvl_vals)?;
+        // that array to get axes along expected geographical directions
+        let lvl_vals = Array2::from_shape_vec((shape.1, shape.0), lvl_vals)?;
         let lvl_vals = lvl_vals.reversed_axes();
 
         sorted_data_levels.push((lvl_id, lvl_vals));
