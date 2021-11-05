@@ -25,6 +25,7 @@ pub(super) mod conv_params;
 mod logger;
 mod runge_kutta;
 
+use log::debug;
 use runge_kutta::RungeKuttaDynamics;
 use std::sync::Arc;
 use chrono::NaiveDateTime;
@@ -101,6 +102,7 @@ fn prepare_parcel(
     config: &Arc<Config>,
     environment: &Arc<Environment>,
 ) -> Result<ParcelState, ParcelError> {
+    debug!("Preparing parcel at: {:?}", start_coords);
     // currently, parcel deployed directly from surface
     // but then (configurable) mixed parcel
     let initial_time = config.datetime.start;
