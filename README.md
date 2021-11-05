@@ -35,12 +35,6 @@ Use of Rust allows for an easy error handling even in concurrent applications, a
 
 By default PATS will display all errors, warnings and infos from log. However, if that is not sufficient you can increase the logging level using `PATS_LOG_LEVEL=debug` environmental variable to turn on the display of insightful debug messages.
 
-### Single and double floating-point precision
-
-PATS is designed to work with single precision (32-bit) floating-point variables. As shown in IFS single-precision is sufficient in most meteorological applications and brings significant performance improvement over double-precision [[1]](https://www.ecmwf.int/en/newsletter/148/meteorology/single-precision-ifs).
-
-However, when increased precision is needed the model can be compiled with `doube_precision` feature.
-
 ### Non-blocking I/O
 
 PATS concurrency design allows for the model to not stop entirely when writing the output and reading input. The model  will lose some performance temporalily, as IO operations are CPU-intensive. But it will use as much of remaining resources as possible, so no time is wasted waiting for IO operation to finish.
