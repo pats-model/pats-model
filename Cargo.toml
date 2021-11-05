@@ -48,8 +48,8 @@ float-cmp = "0.9.0"
 float-cmp = "0.9.0"
 
 [features]
-default = ["double_precision", "log/release_max_level_info"]
-debug = ["log/release_max_level_debug"]
+default = ["double_precision"]
+debug = ["floccus/debug"]
 double_precision = ["floccus/double_precision"]
 3d = []
 raw_output = []

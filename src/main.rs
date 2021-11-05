@@ -64,7 +64,12 @@ static ALLOCATOR: Cap<alloc::System> = Cap::new(alloc::System, usize::MAX);
 /// Furthermore, errors can occur also during model shutdown and they also
 /// can be handled.
 fn main() {
+    #[cfg(not(feature="debug"))]
     let logger_env = Env::new().filter_or("PATS_LOG_LEVEL", "info");
+
+    #[cfg(feature="debug")]
+    let logger_env = Env::new().filter_or("PATS_LOG_LEVEL", "debug");
+    
     env_logger::Builder::from_env(logger_env)
         .format_timestamp_millis()
         .init();
