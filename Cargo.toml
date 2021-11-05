@@ -37,7 +37,7 @@ env_logger = "0.9.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 rustc-hash = "1.1.0"
 eccodes = "0.6.6"
-floccus = "0.3.5"
+floccus = {version="0.3.5", features = ["double_precision"]}
 nalgebra = "0.29.0"
 cap = "0.1.0"
 csv = "1.1.6"
@@ -48,9 +48,7 @@ float-cmp = "0.9.0"
 float-cmp = "0.9.0"
 
 [features]
-default = ["double_precision"]
 debug = ["floccus/debug"]
-double_precision = ["floccus/double_precision"]
 3d = []
 raw_output = []
 

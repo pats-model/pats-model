@@ -20,11 +20,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Module containing constants used by the model.
 
 use crate::Float;
-#[cfg(feature = "double_precision")]
 use std::f64::consts::PI;
-
-#[cfg(not(feature = "double_precision"))]
-use std::f32::consts::PI;
 
 ///WGS84 ellipsoid semi-major axis
 pub const WGS84_A: Float = 6_378_137.0;

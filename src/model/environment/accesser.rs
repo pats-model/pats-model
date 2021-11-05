@@ -85,22 +85,12 @@ impl Environment {
             );
             let (x, y) = self.projection.project(lon, lat);
 
-            #[cfg(not(feature="double_precision"))]
-            let x = x / 1000.0;
-            #[cfg(not(feature="double_precision"))]
-            let y = y / 1000.0;
-
             ref_points[i] = Point2D {
                 x,
                 y,
                 value: field[[*x_index, *y_index]],
             };
         }
-
-        #[cfg(not(feature="double_precision"))]
-        let x = x / 1000.0;
-        #[cfg(not(feature="double_precision"))]
-        let y = y / 1000.0;
 
         let result_val = interpolate_bilinear(x, y, ref_points);
 
@@ -178,25 +168,12 @@ impl Environment {
                 self.fields.lats[[*x_index, *y_index]],
             );
             let (x, y) = self.projection.project(lon, lat);
-            
-            #[cfg(not(feature="double_precision"))]
-            let x = x / 1000.0;
-            #[cfg(not(feature="double_precision"))]
-            let y = y / 1000.0;
-
-            let z_bottom = self.fields.height[[z_index, *x_index, *y_index]];
-            #[cfg(not(feature="double_precision"))]
-            let z_bottom = z_bottom / 1000.0;
-
-            let z_upper = self.fields.height[[z_index + 1, *x_index, *y_index]];
-            #[cfg(not(feature="double_precision"))]
-            let z_upper = z_upper / 1000.0;
 
             // bottom point
             ref_points[i] = Point3D {
                 x,
                 y,
-                z: z_bottom,
+                z: self.fields.height[[z_index, *x_index, *y_index]],
                 value: field[[z_index, *x_index, *y_index]],
             };
 
@@ -204,17 +181,10 @@ impl Environment {
             ref_points[i + 4] = Point3D {
                 x,
                 y,
-                z: z_upper,
+                z: self.fields.height[[z_index + 1, *x_index, *y_index]],
                 value: field[[z_index + 1, *x_index, *y_index]],
             };
         }
-
-        #[cfg(not(feature="double_precision"))]
-        let x = x / 1000.0;
-        #[cfg(not(feature="double_precision"))]
-        let y = y / 1000.0;
-        #[cfg(not(feature="double_precision"))]
-        let z = z / 1000.0;
 
         let result_val = interpolate_tilinear(x, y, z, ref_points);
 

@@ -36,18 +36,8 @@ use env_logger::Env;
 use log::{error, info};
 use std::alloc;
 
-#[cfg(feature = "double_precision")]
-type Float = f64;
 
-/// Type used by the model floating point variables.
-///
-/// ECMWF IFS developers [have shown](https://www.ecmwf.int/en/newsletter/148/meteorology/single-precision-ifs)
-/// that single-precision (32 bit) floating point variables are sufficient in most cases.
-/// However, the increased precision (at a cost of performance) might me necessary sometimes.
-/// Therefore all floating point variables in the model are of this type.
-/// It defaults to [`f32`] and changes to [`f64`] when `double_precision` feature is used.
-#[cfg(not(feature = "double_precision"))]
-type Float = f32;
+type Float = f64;
 
 /// Global allocator used by the model.
 ///

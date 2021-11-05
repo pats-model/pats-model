@@ -22,12 +22,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Closely follows algorithms and instructions in:
 //! <https://pubs.er.usgs.gov/publication/pp1395>
 
-#[cfg(feature = "double_precision")]
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
-
-#[cfg(not(feature = "double_precision"))]
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
-
 use float_cmp::approx_eq;
 
 use crate::constants::{WGS84_A, WGS84_E};
