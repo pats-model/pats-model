@@ -27,6 +27,9 @@ jobs:
       - name: Prepare environment
         run: |
           sudo apt-get update
+          sudo apt-get install clang
+          sudo apt-get install libclang1
+          sudo apt-get install libeccodes-dev
           rustup update stable
           cargo install mdbook
           cargo clean
