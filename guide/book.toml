@@ -1,0 +1,6 @@
+[book]
+authors = ["Jakub Lewandowski"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Guidebook - Parcel Ascent Tracing System (PATS)"
