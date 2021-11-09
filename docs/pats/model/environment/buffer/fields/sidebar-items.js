@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["messages_to_array","Collects data from GRIB messages on specified level type into a 3d array,"],["truncate_field_to_extent","Truncates data on specified level type from GRIB file to cover only the message + margins extent."]]});
