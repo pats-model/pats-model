@@ -27,15 +27,21 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! the fields inside `config.yaml` so you can check this documentation
 //! for more details how to set the config file.
 
-use crate::errors::ConfigError;
+use crate::errors::{ConfigError, InputError};
+use crate::Float;
 use chrono::NaiveDateTime;
+use eccodes::{
+    CodesHandle, FallibleIterator,
+    KeyType::{FloatArray, Int},
+    ProductKind::GRIB,
+};
 use serde::Deserialize;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
-use crate::Float;
+use super::LonLat;
 
 /// Fields with model domain information.
 ///
@@ -55,20 +61,20 @@ pub struct Domain {
 
     /// Domain spacing in meters. Represents the distance between parcels
     /// in x and y directions.
-    /// 
+    ///
     /// Cannot be smaller than `1`.
     pub spacing: Float,
 
     /// Domain shape (in model gridpoints/parcels). Represents
     /// how much parcels will be released along each axis.
-    /// 
+    ///
     /// Total number of released parcels cannot be smaller than `1`.
     pub shape: (u16, u16),
 
     /// _(Optional)_ Domain margins (in degrees) for lon and lat
     /// axis respectively. Parcels will not be released in the margins
     /// area, but the input data will be read there so that parcels can use it.
-    /// 
+    ///
     /// Defaults to `1.0`. Cannot be less than `0.1`.
     #[serde(default = "Domain::default_margins")]
     pub margins: (Float, Float),
@@ -90,7 +96,7 @@ impl Domain {
             ));
         }
 
-        if (u64::from(self.shape.0) *  u64::from(self.shape.1)) < 1 {
+        if (u64::from(self.shape.0) * u64::from(self.shape.1)) < 1 {
             return Err(ConfigError::OutOfBounds(
                 "Total number of gridpoints cannot be less than 1",
             ));
@@ -157,6 +163,110 @@ pub struct Input {
     /// - None of the files can be empty.
     /// - Ideally, there should be only data actually used by model in files.
     pub data_files: Vec<PathBuf>,
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    #[serde(skip)]
+    shape: Option<(usize, usize)>,
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    #[serde(skip)]
+    distinct_lonlats: Option<LonLat<Vec<Float>>>,
+}
+
+impl Input {
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    pub fn shape(&mut self) -> Result<(usize, usize), InputError> {
+        match self.shape {
+            Some(sh) => Ok(sh),
+            None => {
+                let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
+                self.distinct_lonlats = Some(distinct_lonlats);
+                self.shape = Some(shape);
+                Ok(self.shape.unwrap())
+            }
+        }
+    }
+
+    /// (TODO: What it is)
+    ///
+    /// (Why it is neccessary)
+    pub fn distinct_lonlats(&mut self) -> Result<LonLat<Vec<Float>>, InputError> {
+        match self.distinct_lonlats {
+            Some(dl) => Ok(dl),
+            None => {
+                let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
+                self.distinct_lonlats = Some(distinct_lonlats);
+                self.shape = Some(shape);
+                Ok(self.distinct_lonlats.unwrap())
+            }
+        }
+    }
+
+    /// Function to read distinct longitudes and latitudes
+    /// and a grid shape of input GRIB files.
+    fn read_distinct_lonlats_and_shape(
+        &self,
+    ) -> Result<(LonLat<Vec<Float>>, (usize, usize)), InputError> {
+        // We can read any message from any file as we assume that lat-lons
+        // are aligned in all GRIB messages
+
+        // Read first message from first file
+        let any_file = &self.data_files[0];
+        let mut any_file = CodesHandle::new_from_file(any_file, GRIB)?;
+
+        let any_message = any_file.next()?.ok_or(InputError::DataNotSufficient(
+            "One or more input files does not contain any valid GRIB message",
+        ))?;
+
+        let mut distinct_latitudes: Vec<Float>;
+        let mut distinct_longitudes: Vec<Float>;
+
+        if let FloatArray(lats) = any_message.read_key("distinctLatitudes")?.value {
+            distinct_latitudes = lats.into_iter().map(|v| v as Float).collect();
+        } else {
+            return Err(InputError::IncorrectKeyType("distinctLatitudes"));
+        }
+
+        if let FloatArray(lons) = any_message.read_key("distinctLongitudes")?.value {
+            distinct_longitudes = lons.into_iter().map(|v| v as Float).collect();
+        } else {
+            return Err(InputError::IncorrectKeyType("distinctLongitudes"));
+        }
+
+        // Values array in GRIB has (0,0) point at north pole
+        distinct_latitudes
+            .sort_by(|a, b| a.partial_cmp(b).expect("Sorting distinct latitudes failed"));
+        distinct_latitudes.reverse();
+
+        distinct_longitudes.sort_by(|a, b| {
+            a.partial_cmp(b)
+                .expect("Sorting distinct longitudes failed")
+        });
+
+        // Read the shape
+        let ni;
+        let nj;
+
+        if let Int(val) = any_message.read_key("Ni")?.value {
+            ni = val as usize;
+        } else {
+            return Err(InputError::IncorrectKeyType("Ni"));
+        }
+
+        if let Int(val) = any_message.read_key("Nj")?.value {
+            nj = val as usize;
+        } else {
+            return Err(InputError::IncorrectKeyType("Nj"));
+        }
+
+        Ok(((distinct_longitudes, distinct_latitudes), (ni, nj)))
+    }
 }
 
 /// _(Optional)_ Fields with information about

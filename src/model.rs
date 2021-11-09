@@ -42,6 +42,9 @@ use std::{
     sync::{mpsc, Arc},
 };
 
+/// Convenience type to store lat-lon coordinates.
+type LonLat<T> = (T, T);
+
 /// Main model function, responsible for all simulation steps.
 ///
 /// It reads the provided configuration and input data

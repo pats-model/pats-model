@@ -22,7 +22,10 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 use crate::{
     errors::{EnvironmentError, InputError},
-    model::environment::{buffer::find_extent_edge_indices, Environment, LonLat},
+    model::{
+        configuration::Input,
+        environment::{DomainExtent, Environment},
+    },
     Float,
 };
 use eccodes::{
@@ -46,20 +49,13 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_surface(
         &mut self,
-        west_south: LonLat<Float>,
-        east_north: LonLat<Float>,
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
-        debug!(
-            "Buffering surface fields in extent: N{:.2} S{:.2} E{:.2} W{:.2}",
-            east_north.1, west_south.1, east_north.0, west_south.0
-        );
+        debug!("Buffering surface");
 
-        let distinct_lonlats = self.read_distinct_latlons()?;
-        let (edge_lats, edge_lons) =
-            find_extent_edge_indices(&distinct_lonlats, west_south, east_north);
-
-        self.assign_raw_surfaces(edge_lons, edge_lats)?;
-        self.cast_lonlat_surface_coords(&distinct_lonlats, edge_lons, edge_lats);
+        self.assign_raw_surfaces(input, domain_edges)?;
+        self.cast_lonlat_surface_coords(&input.distinct_lonlats()?, domain_edges);
 
         Ok(())
     }
@@ -68,29 +64,29 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_surfaces(
         &mut self,
-        edge_lons: (usize, usize),
-        edge_lats: (usize, usize),
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
     ) -> Result<(), InputError> {
-        let input_shape = self.read_input_shape()?;
+        let input_shape = input.shape()?;
 
         let geopotential = self.read_raw_surface("z", input_shape)?;
         self.surface.height =
-            truncate_surface_to_extent(&geopotential, edge_lats, edge_lons).mapv(|v| v / G);
+            truncate_surface_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
         let pressure = self.read_raw_surface("sp", input_shape)?;
-        self.surface.pressure = truncate_surface_to_extent(&pressure, edge_lats, edge_lons);
+        self.surface.pressure = truncate_surface_to_extent(&pressure, domain_edges);
 
         let temperature = self.read_raw_surface("2t", input_shape)?;
-        self.surface.temperature = truncate_surface_to_extent(&temperature, edge_lats, edge_lons);
+        self.surface.temperature = truncate_surface_to_extent(&temperature, domain_edges);
 
         let dewpoint = self.read_raw_surface("2d", input_shape)?;
-        self.surface.dewpoint = truncate_surface_to_extent(&dewpoint, edge_lats, edge_lons);
+        self.surface.dewpoint = truncate_surface_to_extent(&dewpoint, domain_edges);
 
         let u_wind = self.read_raw_surface("10u", input_shape)?;
-        self.surface.u_wind = truncate_surface_to_extent(&u_wind, edge_lats, edge_lons);
+        self.surface.u_wind = truncate_surface_to_extent(&u_wind, domain_edges);
 
         let v_wind = self.read_raw_surface("10v", input_shape)?;
-        self.surface.v_wind = truncate_surface_to_extent(&v_wind, edge_lats, edge_lons);
+        self.surface.v_wind = truncate_surface_to_extent(&v_wind, domain_edges);
 
         Ok(())
     }
@@ -150,17 +146,16 @@ impl Environment {
     fn cast_lonlat_surface_coords(
         &mut self,
         distinct_lonlats: &(Vec<Float>, Vec<Float>),
-        edge_lons: (usize, usize),
-        edge_lats: (usize, usize),
+        domain_edges: DomainExtent<usize>,
     ) {
-        let lats = distinct_lonlats.1[edge_lats.0..=edge_lats.1].to_vec();
+        let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
         let lons;
 
-        if edge_lons.0 < edge_lons.1 {
-            lons = distinct_lonlats.0[edge_lons.0..=edge_lons.1].to_vec();
+        if domain_edges.west < domain_edges.east {
+            lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
         } else {
-            let left_half = &distinct_lonlats.0[edge_lons.1..];
-            let right_half = &distinct_lonlats.0[..=edge_lons.0];
+            let left_half = &distinct_lonlats.0[domain_edges.east..];
+            let right_half = &distinct_lonlats.0[..=domain_edges.west];
 
             lons = [left_half, right_half].concat();
         }
@@ -183,19 +178,18 @@ impl Environment {
 /// cover only the domain + margins extent.
 fn truncate_surface_to_extent(
     raw_field: &Array2<Float>,
-    edge_lats: (usize, usize),
-    edge_lons: (usize, usize),
+    domain_edges: DomainExtent<usize>,
 ) -> Array2<Float> {
     //truncate in NS axis
-    let truncated_field = raw_field.slice(s![.., edge_lats.0..=edge_lats.1]);
+    let truncated_field = raw_field.slice(s![.., domain_edges.north..=domain_edges.south]);
 
-    if edge_lons.0 < edge_lons.1 {
-        let truncated_field = truncated_field.slice(s![edge_lons.0..=edge_lons.1, ..]);
+    if domain_edges.west < domain_edges.east {
+        let truncated_field = truncated_field.slice(s![domain_edges.west..=domain_edges.east, ..]);
         return truncated_field.to_owned();
     }
 
-    let left_half = truncated_field.slice(s![edge_lons.0.., ..]);
-    let right_half = truncated_field.slice(s![..=edge_lons.1, ..]);
+    let left_half = truncated_field.slice(s![domain_edges.west.., ..]);
+    let right_half = truncated_field.slice(s![..=domain_edges.east, ..]);
     let truncated_field = concatenate![Axis(0), left_half, right_half];
     truncated_field.to_owned()
 }

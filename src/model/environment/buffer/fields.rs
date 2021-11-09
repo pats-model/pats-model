@@ -21,7 +21,10 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! pressure level data buffering.
 use crate::{
     errors::{EnvironmentError, InputError},
-    model::environment::{buffer::find_extent_edge_indices, Environment, LonLat},
+    model::{
+        configuration::Input,
+        environment::{DomainExtent, Environment},
+    },
     Float,
 };
 use eccodes::{
@@ -45,21 +48,14 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_fields(
         &mut self,
-        west_south: LonLat<Float>,
-        east_north: LonLat<Float>,
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
-        debug!(
-            "Buffering input fields in extent: N{:.2} S{:.2} E{:.2} W{:.2}",
-            east_north.1, west_south.1, east_north.0, west_south.0
-        );
+        debug!("Buffering fields");
 
-        let distinct_lonlats = self.read_distinct_latlons()?;
-        let (edge_lats, edge_lons) =
-            find_extent_edge_indices(&distinct_lonlats, west_south, east_north);
-
-        self.assign_raw_fields(edge_lons, edge_lats)?;
+        self.assign_raw_fields(input, domain_edges)?;
         self.compute_intermediate_fields();
-        self.cast_lonlat_fields_coords(&distinct_lonlats, edge_lons, edge_lats);
+        self.cast_lonlat_fields_coords(&input.distinct_lonlats()?, domain_edges);
 
         Ok(())
     }
@@ -68,28 +64,27 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_fields(
         &mut self,
-        edge_lons: (usize, usize),
-        edge_lats: (usize, usize),
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
     ) -> Result<(), InputError> {
-        let input_shape = self.read_input_shape()?;
+        let input_shape = input.shape()?;
 
-        self.fields.pressure = self.read_truncated_pressure(edge_lons, edge_lats);
+        self.fields.pressure = self.read_truncated_pressure(domain_edges);
 
         let geopotential = self.read_raw_field("z", input_shape)?;
-        self.fields.height =
-            truncate_field_to_extent(&geopotential, edge_lats, edge_lons).mapv(|v| v / G);
+        self.fields.height = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
         let temperature = self.read_raw_field("t", input_shape)?;
-        self.fields.temperature = truncate_field_to_extent(&temperature, edge_lats, edge_lons);
+        self.fields.temperature = truncate_field_to_extent(&temperature, domain_edges);
 
         let u_wind = self.read_raw_field("u", input_shape)?;
-        self.fields.u_wind = truncate_field_to_extent(&u_wind, edge_lats, edge_lons);
+        self.fields.u_wind = truncate_field_to_extent(&u_wind, domain_edges);
 
         let v_wind = self.read_raw_field("v", input_shape)?;
-        self.fields.v_wind = truncate_field_to_extent(&v_wind, edge_lats, edge_lons);
+        self.fields.v_wind = truncate_field_to_extent(&v_wind, domain_edges);
 
         let spec_humidity = self.read_raw_field("q", input_shape)?;
-        self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, edge_lats, edge_lons);
+        self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges);
 
         Ok(())
     }
@@ -145,14 +140,10 @@ impl Environment {
     /// pressure levels are available has to be extracted
     /// and then casted to the 3d array expected by the
     /// [`accesser`](super::super::accesser).
-    fn read_truncated_pressure(
-        &self,
-        edge_lons: (usize, usize),
-        edge_lats: (usize, usize),
-    ) -> Array3<Float> {
+    fn read_truncated_pressure(&self, domain_edges: DomainExtent<usize>) -> Array3<Float> {
         let xy_shape = (
-            (edge_lons.1 as isize - edge_lons.0 as isize).abs() as usize + 1,
-            (edge_lats.1 as isize - edge_lats.0 as isize).abs() as usize + 1,
+            (domain_edges.east as isize - domain_edges.west as isize).abs() as usize + 1,
+            (domain_edges.south as isize - domain_edges.north as isize).abs() as usize + 1,
         );
 
         let mut pressure_levels = vec![];
@@ -196,17 +187,16 @@ impl Environment {
     fn cast_lonlat_fields_coords(
         &mut self,
         distinct_lonlats: &(Vec<Float>, Vec<Float>),
-        edge_lons: (usize, usize),
-        edge_lats: (usize, usize),
+        domain_edges: DomainExtent<usize>,
     ) {
-        let lats = distinct_lonlats.1[edge_lats.0..=edge_lats.1].to_vec();
+        let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
         let lons;
 
-        if edge_lons.0 < edge_lons.1 {
-            lons = distinct_lonlats.0[edge_lons.0..=edge_lons.1].to_vec();
+        if domain_edges.west < domain_edges.east {
+            lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
         } else {
-            let left_half = &distinct_lonlats.0[edge_lons.1..];
-            let right_half = &distinct_lonlats.0[..=edge_lons.0];
+            let left_half = &distinct_lonlats.0[domain_edges.east..];
+            let right_half = &distinct_lonlats.0[..=domain_edges.west];
 
             lons = [left_half, right_half].concat();
         }
@@ -280,19 +270,19 @@ fn messages_to_array(
 /// to cover only the message + margins extent.
 fn truncate_field_to_extent(
     raw_field: &Array3<Float>,
-    edge_lats: (usize, usize),
-    edge_lons: (usize, usize),
+    domain_edges: DomainExtent<usize>,
 ) -> Array3<Float> {
     //truncate in NS axis
-    let truncated_field = raw_field.slice(s![.., .., edge_lats.0..=edge_lats.1]);
+    let truncated_field = raw_field.slice(s![.., .., domain_edges.north..=domain_edges.south]);
 
-    if edge_lons.0 < edge_lons.1 {
-        let truncated_field = truncated_field.slice(s![.., edge_lons.0..=edge_lons.1, ..]);
+    if domain_edges.west < domain_edges.east {
+        let truncated_field =
+            truncated_field.slice(s![.., domain_edges.west..=domain_edges.east, ..]);
         return truncated_field.to_owned();
     }
 
-    let left_half = truncated_field.slice(s![.., edge_lons.0.., ..]);
-    let right_half = truncated_field.slice(s![.., ..=edge_lons.1, ..]);
+    let left_half = truncated_field.slice(s![.., domain_edges.west.., ..]);
+    let right_half = truncated_field.slice(s![.., ..=domain_edges.east, ..]);
     let truncated_field = concatenate![Axis(1), left_half, right_half];
     truncated_field.to_owned()
 }

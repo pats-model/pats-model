@@ -36,8 +36,13 @@ use log::debug;
 use ndarray::{Array2, Array3};
 use rustc_hash::FxHashSet;
 
-/// Convenience type to store lat-lon coordinates.
-type LonLat<T> = (T, T);
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
+struct DomainExtent<T> {
+    north: T,
+    south: T,
+    west: T,
+    east: T,
+}
 
 /// Enum containing fields on pressure
 /// levels that can be requested.
@@ -140,9 +145,7 @@ impl Surface {
 pub struct Environment {
     fields: Fields,
     surface: Surface,
-    input: configuration::Input,
     pub projection: LambertConicConformal,
-    levels: Vec<i64>,
 }
 
 impl Environment {
@@ -157,20 +160,16 @@ impl Environment {
 
         let projection = generate_domain_projection(&config.domain)?;
 
-        let (west_south, east_north) = compute_domain_extent(&config.domain, &projection);
-
-        let levels = list_levels(&config.input)?;
+        let domain_edges = compute_domain_edges(&config, &projection)?;
 
         let mut new_env = Environment {
             fields,
             surface,
-            input: config.input.clone(),
             projection,
-            levels,
         };
 
-        new_env.buffer_fields(west_south, east_north)?;
-        new_env.buffer_surface(west_south, east_north)?;
+        new_env.buffer_fields(&config.input, domain_edges)?;
+        new_env.buffer_surface(&config.input, domain_edges)?;
 
         Ok(new_env)
     }
@@ -235,29 +234,75 @@ fn approx_central_lon(lon_0: Float, lat_0: Float, distance: Float) -> Float {
 }
 
 /// Function to get a lat-lon extent of domain with margins.
-fn compute_domain_extent(
-    domain: &Domain,
-    projection: &LambertConicConformal,
-) -> (LonLat<Float>, LonLat<Float>) {
-    let sw_xy = projection.project(domain.ref_lon, domain.ref_lat);
+fn compute_domain_edges(config: &Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
+    let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (
-        sw_xy.0 + ((domain.shape.0 - 1) as Float * domain.spacing),
-        sw_xy.1 + ((domain.shape.1 - 1) as Float * domain.spacing),
+        sw_xy.0 + ((config.domain.shape.0 - 1) as Float * config.domain.spacing),
+        sw_xy.1 + ((config.domain.shape.1 - 1) as Float * config.domain.spacing),
     );
 
     let ne_lonlat = projection.inverse_project(ne_xy.0, ne_xy.1);
 
-    (
-        (
-            domain.ref_lon - domain.margins.0,
-            domain.ref_lat - domain.margins.1,
-        ),
-        (
-            ne_lonlat.0 + domain.margins.0,
-            ne_lonlat.1 + domain.margins.1,
-        ),
-    )
+    let domain_extent = DomainExtent {
+        west: config.domain.ref_lon - config.domain.margins.0,
+        south: config.domain.ref_lat - config.domain.margins.1,
+        east: ne_lonlat.0 + config.domain.margins.0,
+        north: ne_lonlat.1 + config.domain.margins.1,
+    };
+
+    debug!(
+        "Computed buffering extent: N{:.2}<->{:.2} E{:.2}<->{:.2}",
+        domain_extent.north, domain_extent.south, domain_extent.east, domain_extent.west
+    );
+
+    let distinct_lonlats = &config.input.distinct_lonlats()?;
+    let domain_edges = find_extent_edge_indices(distinct_lonlats, domain_extent);
+
+    Ok(domain_edges)
+}
+
+/// Finds closests indices in the GRIB input files
+/// grid that fully cover domain with margins (it is
+/// with some excess).
+fn find_extent_edge_indices(
+    distinct_lonlats: &(Vec<Float>, Vec<Float>),
+    domain_extent: DomainExtent<Float>,
+) -> DomainExtent<usize> {
+    let edge_lats = (
+        bisection::find_left_closest(&distinct_lonlats.1, &domain_extent.north).unwrap(),
+        bisection::find_right_closest(&distinct_lonlats.1, &domain_extent.south).unwrap(),
+    );
+    let edge_lons = (
+        bisection::find_left_closest(
+            &distinct_lonlats.0,
+            &convert_to_grib_longitudes(domain_extent.west),
+        )
+        .unwrap(),
+        bisection::find_right_closest(
+            &distinct_lonlats.0,
+            &convert_to_grib_longitudes(domain_extent.east),
+        )
+        .unwrap(),
+    );
+
+    DomainExtent {
+        north: edge_lats.0,
+        south: edge_lats.1,
+        west: edge_lons.0,
+        east: edge_lons.1,
+    }
+}
+
+/// Converts the longitude in convention used by model
+/// (longitude between -180 and 180) to longitude
+/// in GRIB convention (any positive integer).
+fn convert_to_grib_longitudes(longitude: Float) -> Float {
+    if longitude < 0.0 {
+        return 360.0 + longitude;
+    }
+
+    longitude
 }
 
 /// Function to get the list of unique levels
