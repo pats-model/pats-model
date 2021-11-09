@@ -26,15 +26,13 @@ mod buffer;
 mod interpolation;
 mod projection;
 
-use super::configuration::{self, Config, Domain};
+use super::configuration::{Config, Domain};
 use crate::constants::{NS_C_EARTH, WE_C_EARTH};
 use crate::errors::InputError;
 use crate::model::environment::projection::LambertConicConformal;
 use crate::{errors::EnvironmentError, Float};
-use eccodes::{CodesHandle, FallibleIterator, KeyType, ProductKind::GRIB};
 use log::debug;
 use ndarray::{Array2, Array3};
-use rustc_hash::FxHashSet;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
 struct DomainExtent<T> {
@@ -152,7 +150,7 @@ impl Environment {
     /// Environment struct constructor
     /// responsible for reading GRIB files
     /// and buffering data in domain extent.
-    pub fn new(config: &Config) -> Result<Self, EnvironmentError> {
+    pub fn new(config: &mut Config) -> Result<Self, EnvironmentError> {
         debug!("Creating new enviroment");
 
         let fields = Fields::new_empty();
@@ -160,7 +158,7 @@ impl Environment {
 
         let projection = generate_domain_projection(&config.domain)?;
 
-        let domain_edges = compute_domain_edges(&config, &projection)?;
+        let domain_edges = compute_domain_edges(config, &projection)?;
 
         let mut new_env = Environment {
             fields,
@@ -168,8 +166,11 @@ impl Environment {
             projection,
         };
 
-        new_env.buffer_fields(&config.input, domain_edges)?;
-        new_env.buffer_surface(&config.input, domain_edges)?;
+        let level_data = buffer::collect_fields(&config.input)?;
+        let surface_data = buffer::collect_surfaces(&config.input)?;
+
+        new_env.buffer_fields(&mut config.input, level_data, domain_edges)?;
+        new_env.buffer_surface(&mut config.input, surface_data, domain_edges)?;
 
         Ok(new_env)
     }
@@ -234,7 +235,7 @@ fn approx_central_lon(lon_0: Float, lat_0: Float, distance: Float) -> Float {
 }
 
 /// Function to get a lat-lon extent of domain with margins.
-fn compute_domain_edges(config: &Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
+fn compute_domain_edges(config: &mut Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
     let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (
@@ -303,34 +304,4 @@ fn convert_to_grib_longitudes(longitude: Float) -> Float {
     }
 
     longitude
-}
-
-/// Function to get the list of unique levels
-/// of specified type in the provided GRIB files.
-fn list_levels(input: &configuration::Input) -> Result<Vec<i64>, InputError> {
-    debug!("Getting levels list");
-
-    let mut unique_levels: FxHashSet<i64> = FxHashSet::default();
-
-    for file_name in &input.data_files {
-        let mut handle = CodesHandle::new_from_file(file_name, GRIB)?;
-
-        while let Some(level) = &mut handle.next()? {
-            if level.read_key("typeOfLevel")?.value == KeyType::Str(input.level_type.clone()) {
-                let level_id = level.read_key("level")?;
-
-                if let KeyType::Int(id) = level_id.value {
-                    unique_levels.insert(id);
-                } else {
-                    return Err(InputError::IncorrectKeyType("level"));
-                };
-            }
-        }
-    }
-
-    let mut unique_levels: Vec<i64> = unique_levels.into_iter().collect();
-    unique_levels.sort_unstable();
-    unique_levels.reverse();
-
-    Ok(unique_levels)
 }

@@ -29,10 +29,8 @@ use crate::{
     Float,
 };
 use eccodes::{
-    CodesHandle, FallibleIterator,
     KeyType::{FloatArray, Str},
     KeyedMessage,
-    ProductKind::GRIB,
 };
 use floccus::constants::G;
 use log::debug;
@@ -49,13 +47,14 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_surface(
         &mut self,
-        input: &Input,
+        input: &mut Input,
+        data: Vec<KeyedMessage>,
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
         debug!("Buffering surface");
 
-        self.assign_raw_surfaces(input, domain_edges)?;
-        self.cast_lonlat_surface_coords(&input.distinct_lonlats()?, domain_edges);
+        self.assign_raw_surfaces(input, data, domain_edges)?;
+        self.cast_lonlat_surface_coords(input.distinct_lonlats()?, domain_edges);
 
         Ok(())
     }
@@ -64,82 +63,32 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_surfaces(
         &mut self,
-        input: &Input,
+        input: &mut Input,
+        data: Vec<KeyedMessage>,
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), InputError> {
         let input_shape = input.shape()?;
 
-        let geopotential = self.read_raw_surface("z", input_shape)?;
+        let geopotential = read_raw_surface("z", input_shape, &data)?;
         self.surface.height =
             truncate_surface_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
-        let pressure = self.read_raw_surface("sp", input_shape)?;
+        let pressure = read_raw_surface("sp", input_shape, &data)?;
         self.surface.pressure = truncate_surface_to_extent(&pressure, domain_edges);
 
-        let temperature = self.read_raw_surface("2t", input_shape)?;
+        let temperature = read_raw_surface("2t", input_shape, &data)?;
         self.surface.temperature = truncate_surface_to_extent(&temperature, domain_edges);
 
-        let dewpoint = self.read_raw_surface("2d", input_shape)?;
+        let dewpoint = read_raw_surface("2d", input_shape, &data)?;
         self.surface.dewpoint = truncate_surface_to_extent(&dewpoint, domain_edges);
 
-        let u_wind = self.read_raw_surface("10u", input_shape)?;
+        let u_wind = read_raw_surface("10u", input_shape, &data)?;
         self.surface.u_wind = truncate_surface_to_extent(&u_wind, domain_edges);
 
-        let v_wind = self.read_raw_surface("10v", input_shape)?;
+        let v_wind = read_raw_surface("10v", input_shape, &data)?;
         self.surface.v_wind = truncate_surface_to_extent(&v_wind, domain_edges);
 
         Ok(())
-    }
-
-    /// Reads all values in GRIB file at surface level
-    /// of variable with given `short_name`.
-    fn read_raw_surface(
-        &self,
-        short_name: &str,
-        shape: (usize, usize),
-    ) -> Result<Array2<Float>, InputError> {
-        let mut data_level: Vec<KeyedMessage> = vec![];
-
-        for file in &self.input.data_files {
-            let handle = CodesHandle::new_from_file(file, GRIB)?;
-
-            let mut data: Vec<KeyedMessage> = handle
-                .filter(|msg| {
-                    Ok(
-                        msg.read_key("shortName")?.value == Str(short_name.to_string())
-                            && msg.read_key("typeOfLevel")?.value == Str("surface".to_string()),
-                    )
-                })
-                .collect()?;
-
-            data_level.append(&mut data);
-        }
-
-        if data_level.is_empty() {
-            return Err(InputError::DataNotSufficient(
-                "Not enough variables in surface levels, check your input data",
-            ));
-        }
-
-        let data_level = data_level[0].read_key("values")?.value;
-        let data_level = if let FloatArray(v) = data_level {
-            v
-        } else {
-            return Err(InputError::IncorrectKeyType("values"));
-        };
-
-        // a bit of magic
-        // data values in GRIB are a vec of values row-by-row (x-axis is in WE direction)
-        // we want a Array2 of provided `shape` with x-axis in WE direction
-        // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
-        // and puts them in columns
-        // so we need to correctly split the data in GRIB vector into Array2 and then transpose
-        // that array to get axes along expected geographical directions
-        let result_data = Array2::from_shape_vec((shape.1, shape.0), data_level)?;
-        let result_data = result_data.reversed_axes();
-        let result_data = result_data.mapv(|v| v as Float);
-
-        Ok(result_data)
     }
 
     /// Buffers longitudes and latitudes of surface data gridpoints.
@@ -172,6 +121,50 @@ impl Environment {
         self.surface.lons = lons;
         self.surface.lats = lats;
     }
+}
+
+/// Reads all values in GRIB file at surface level
+/// of variable with given `short_name`.
+fn read_raw_surface(
+    short_name: &str,
+    shape: (usize, usize),
+    data: &Vec<KeyedMessage>,
+) -> Result<Array2<Float>, InputError> {
+    let mut data_level = None;
+
+    for msg in data {
+        if msg.read_key("shortName")?.value == Str(short_name.to_string()) {
+            data_level = Some(msg);
+            break;
+        }
+    }
+
+    if data_level.is_none() {
+        return Err(InputError::DataNotSufficient(
+            "Not enough data on surface levels, check your input data",
+        ));
+    }
+
+    let data_level = data_level.unwrap();
+    let data_level = data_level.read_key("values")?.value;
+    let data_level = if let FloatArray(v) = data_level {
+        v
+    } else {
+        return Err(InputError::IncorrectKeyType("values"));
+    };
+
+    // a bit of magic
+    // data values in GRIB are a vec of values row-by-row (x-axis is in WE direction)
+    // we want a Array2 of provided `shape` with x-axis in WE direction
+    // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
+    // and puts them in columns
+    // so we need to correctly split the data in GRIB vector into Array2 and then transpose
+    // that array to get axes along expected geographical directions
+    let result_data = Array2::from_shape_vec((shape.1, shape.0), data_level)?;
+    let result_data = result_data.reversed_axes();
+    let result_data = result_data.mapv(|v| v as Float);
+
+    Ok(result_data)
 }
 
 /// Truncates surface data array from GRIB file to

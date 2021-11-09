@@ -23,9 +23,75 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 mod fields;
 mod surface;
 
-use crate::model::configuration;
+use eccodes::{CodesHandle, FallibleIterator, KeyType::Str, KeyedMessage, ProductKind::GRIB};
+
+use crate::{errors::InputError, model::configuration};
 
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-fn collect_fields(input: &configuration::Input) {}
+pub(super) fn collect_fields(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError> {
+    let mut data_levels: Vec<KeyedMessage> = vec![];
+
+    for file in &input.data_files {
+        let handle = CodesHandle::new_from_file(file, GRIB)?;
+
+        let mut data: Vec<KeyedMessage> = handle
+            .filter(|msg| {
+                Ok(
+                    msg.read_key("typeOfLevel")?.value == Str(input.level_type.clone())
+                        && (msg.read_key("shortName")?.value == Str("z".to_string())
+                            || msg.read_key("shortName")?.value == Str("q".to_string())
+                            || msg.read_key("shortName")?.value == Str("t".to_string())
+                            || msg.read_key("shortName")?.value == Str("u".to_string())
+                            || msg.read_key("shortName")?.value == Str("v".to_string())),
+                )
+            })
+            .collect()?;
+
+        data_levels.append(&mut data);
+    }
+
+    if data_levels.is_empty() {
+        return Err(InputError::DataNotSufficient(
+            "Not enough variables on isobaric levels, check your input data",
+        ));
+    }
+
+    Ok(data_levels)
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+pub(super) fn collect_surfaces(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError> {
+    let mut data_levels: Vec<KeyedMessage> = vec![];
+
+    for file in &input.data_files {
+        let handle = CodesHandle::new_from_file(file, GRIB)?;
+
+        let mut data: Vec<KeyedMessage> = handle
+            .filter(|msg| {
+                Ok(
+                    msg.read_key("typeOfLevel")?.value == Str("surface".to_string())
+                        && (msg.read_key("shortName")?.value == Str("10u".to_string())
+                            || msg.read_key("shortName")?.value == Str("10v".to_string())
+                            || msg.read_key("shortName")?.value == Str("2t".to_string())
+                            || msg.read_key("shortName")?.value == Str("2d".to_string())
+                            || msg.read_key("shortName")?.value == Str("sp".to_string())
+                            || msg.read_key("shortName")?.value == Str("z".to_string())),
+                )
+            })
+            .collect()?;
+
+        data_levels.append(&mut data);
+    }
+
+    if data_levels.is_empty() {
+        return Err(InputError::DataNotSufficient(
+            "Not enough variables on surface levels, check your input data",
+        ));
+    }
+
+    Ok(data_levels)
+}

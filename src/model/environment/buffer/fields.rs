@@ -27,15 +27,11 @@ use crate::{
     },
     Float,
 };
-use eccodes::{
-    CodesHandle, FallibleIterator,
-    KeyType::{FloatArray, Int, Str},
-    KeyedMessage,
-    ProductKind::GRIB,
-};
+use eccodes::{KeyType::{self, FloatArray, Int, Str}, KeyedMessage};
 use floccus::constants::G;
 use log::debug;
 use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
+use rustc_hash::FxHashSet;
 
 impl Environment {
     /// Function to read pressure level data from GRIB input
@@ -48,14 +44,15 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_fields(
         &mut self,
-        input: &Input,
+        input: &mut Input,
+        data: Vec<KeyedMessage>,
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
         debug!("Buffering fields");
 
-        self.assign_raw_fields(input, domain_edges)?;
+        self.assign_raw_fields(input, domain_edges, data)?;
         self.compute_intermediate_fields();
-        self.cast_lonlat_fields_coords(&input.distinct_lonlats()?, domain_edges);
+        self.cast_lonlat_fields_coords(input.distinct_lonlats()?, domain_edges);
 
         Ok(())
     }
@@ -64,105 +61,30 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_fields(
         &mut self,
-        input: &Input,
+        input: &mut Input,
         domain_edges: DomainExtent<usize>,
+        data: Vec<KeyedMessage>,
     ) -> Result<(), InputError> {
         let input_shape = input.shape()?;
 
-        self.fields.pressure = self.read_truncated_pressure(domain_edges);
+        self.fields.pressure = read_truncated_pressure(&data, domain_edges)?;
 
-        let geopotential = self.read_raw_field("z", input_shape)?;
+        let geopotential = read_raw_field("z", input_shape, &data)?;
         self.fields.height = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
-        let temperature = self.read_raw_field("t", input_shape)?;
+        let temperature = read_raw_field("t", input_shape, &data)?;
         self.fields.temperature = truncate_field_to_extent(&temperature, domain_edges);
 
-        let u_wind = self.read_raw_field("u", input_shape)?;
+        let u_wind = read_raw_field("u", input_shape, &data)?;
         self.fields.u_wind = truncate_field_to_extent(&u_wind, domain_edges);
 
-        let v_wind = self.read_raw_field("v", input_shape)?;
+        let v_wind = read_raw_field("v", input_shape, &data)?;
         self.fields.v_wind = truncate_field_to_extent(&v_wind, domain_edges);
 
-        let spec_humidity = self.read_raw_field("q", input_shape)?;
+        let spec_humidity = read_raw_field("q", input_shape, &data)?;
         self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges);
 
         Ok(())
-    }
-
-    /// Reads all values in GRIB file at specified level type
-    /// of variable with given `short_name` and collects them
-    /// into a 3d array.
-    ///
-    /// In GRIB files data on each level is stored as a separate
-    /// message. Those need to be collected and only then can be
-    /// converted into a 3d array.
-    fn read_raw_field(
-        &self,
-        short_name: &str,
-        shape: (usize, usize),
-    ) -> Result<Array3<Float>, InputError> {
-        let data_levels = self.read_raw_messages(short_name)?;
-        let result_data = messages_to_array(data_levels, shape)?;
-
-        Ok(result_data)
-    }
-
-    /// Filters and read all GRIB messages that contain
-    /// variable with given `short_name` on specified level type.
-    fn read_raw_messages(&self, short_name: &str) -> Result<Vec<KeyedMessage>, InputError> {
-        let mut data_levels: Vec<KeyedMessage> = vec![];
-
-        for file in &self.input.data_files {
-            let handle = CodesHandle::new_from_file(file, GRIB)?;
-
-            let mut data: Vec<KeyedMessage> = handle
-                .filter(|msg| {
-                    Ok(
-                        msg.read_key("shortName")?.value == Str(short_name.to_string())
-                            && msg.read_key("typeOfLevel")?.value
-                                == Str(self.input.level_type.clone()),
-                    )
-                })
-                .collect()?;
-
-            data_levels.append(&mut data);
-        }
-
-        Ok(data_levels)
-    }
-
-    /// Creates a 3d array of pressure data of shape
-    /// identical to other pressure level fields.
-    ///
-    /// When data in GRIB file is provided on pressure levels
-    /// the information about pressure at each level is only
-    /// stored in message metadata. Thus, information what
-    /// pressure levels are available has to be extracted
-    /// and then casted to the 3d array expected by the
-    /// [`accesser`](super::super::accesser).
-    fn read_truncated_pressure(&self, domain_edges: DomainExtent<usize>) -> Array3<Float> {
-        let xy_shape = (
-            (domain_edges.east as isize - domain_edges.west as isize).abs() as usize + 1,
-            (domain_edges.south as isize - domain_edges.north as isize).abs() as usize + 1,
-        );
-
-        let mut pressure_levels = vec![];
-
-        for level in &self.levels {
-            let pressure_level = Array2::from_elem(xy_shape, *level);
-            let pressure_level = pressure_level.mapv(|v| (v as Float) * 100.0);
-            pressure_levels.push(pressure_level);
-        }
-
-        let mut pressure_views = vec![];
-
-        for level in &pressure_levels {
-            pressure_views.push(level.view());
-        }
-
-        let pressure_levels = ndarray::stack(Axis(0), pressure_views.as_slice()).unwrap();
-
-        pressure_levels
     }
 
     /// Computes and buffers additional pressure level data from
@@ -215,10 +137,113 @@ impl Environment {
     }
 }
 
+/// Creates a 3d array of pressure data of shape
+/// identical to other pressure level fields.
+///
+/// When data in GRIB file is provided on pressure levels
+/// the information about pressure at each level is only
+/// stored in message metadata. Thus, information what
+/// pressure levels are available has to be extracted
+/// and then casted to the 3d array expected by the
+/// [`accesser`](super::super::accesser).
+fn read_truncated_pressure(
+    levels_data: &Vec<KeyedMessage>,
+    domain_edges: DomainExtent<usize>,
+) -> Result<Array3<Float>, InputError> {
+    let xy_shape = (
+        (domain_edges.east as isize - domain_edges.west as isize).abs() as usize + 1,
+        (domain_edges.south as isize - domain_edges.north as isize).abs() as usize + 1,
+    );
+
+    let levels_list = list_levels(levels_data)?;
+    let mut pressure_levels = vec![];
+
+    for level in levels_list {
+        let pressure_level = Array2::from_elem(xy_shape, level);
+        let pressure_level = pressure_level.mapv(|v| (v as Float) * 100.0);
+        pressure_levels.push(pressure_level);
+    }
+
+    let mut pressure_views = vec![];
+
+    for level in &pressure_levels {
+        pressure_views.push(level.view());
+    }
+
+    let pressure_levels = ndarray::stack(Axis(0), pressure_views.as_slice()).unwrap();
+
+    Ok(pressure_levels)
+}
+
+/// Function to get the list of unique levels
+/// of specified type in the provided GRIB files.
+fn list_levels(data: &Vec<KeyedMessage>) -> Result<Vec<i64>, InputError> {
+    debug!("Getting levels list");
+
+    let mut unique_levels: FxHashSet<i64> = FxHashSet::default();
+
+    for msg in data {
+        let level_id = msg.read_key("level")?;
+
+        if let KeyType::Int(id) = level_id.value {
+            unique_levels.insert(id);
+        } else {
+            return Err(InputError::IncorrectKeyType("level"));
+        };
+    }
+
+    let mut unique_levels: Vec<i64> = unique_levels.into_iter().collect();
+    unique_levels.sort_unstable();
+    unique_levels.reverse();
+
+    Ok(unique_levels)
+}
+
+/// Reads all values in GRIB file at specified level type
+/// of variable with given `short_name` and collects them
+/// into a 3d array.
+///
+/// In GRIB files data on each level is stored as a separate
+/// message. Those need to be collected and only then can be
+/// converted into a 3d array.
+fn read_raw_field(
+    short_name: &str,
+    shape: (usize, usize),
+    data: &Vec<KeyedMessage>,
+) -> Result<Array3<Float>, InputError> {
+    let data_levels = read_raw_messages(short_name, data)?;
+    let result_data = messages_to_array(data_levels, shape)?;
+
+    Ok(result_data)
+}
+
+/// Filters and read all GRIB messages that contain
+/// variable with given `short_name` on specified level type.
+fn read_raw_messages<'a>(
+    short_name: &str,
+    data: &'a Vec<KeyedMessage>,
+) -> Result<Vec<&'a KeyedMessage>, InputError> {
+    let mut data_levels: Vec<&KeyedMessage> = vec![];
+
+    for msg in data {
+        if msg.read_key("shortName")?.value == Str(short_name.to_string()) {
+            data_levels.push(msg);
+        }
+    }
+
+    if data_levels.is_empty() {
+        return Err(InputError::DataNotSufficient(
+            "Not enough data at isobaric levels",
+        ));
+    }
+
+    Ok(data_levels)
+}
+
 /// Collects data from GRIB messages on specified level type
 /// into a 3d array,
 fn messages_to_array(
-    data_levels: Vec<KeyedMessage>,
+    data_levels: Vec<&KeyedMessage>,
     shape: (usize, usize),
 ) -> Result<Array3<Float>, InputError> {
     let mut sorted_data_levels = vec![];

@@ -138,7 +138,7 @@ impl Core {
     /// loaded and checked.
     pub fn new() -> Result<Self, ModelError> {
         debug!("Reading configuration from config.yaml");
-        let config = Config::new_from_file(Path::new("config.yaml"))?;
+        let mut config = Config::new_from_file(Path::new("config.yaml"))?;
 
         debug!("Setting memory limit");
         ALLOCATOR
@@ -152,7 +152,7 @@ impl Core {
             .build()?;
 
         debug!("Reading environmental boundary conditions from GRIB");
-        let environ = Environment::new(&config)?;
+        let environ = Environment::new(&mut config)?;
 
         Ok(Core {
             config,
