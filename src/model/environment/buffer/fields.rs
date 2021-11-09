@@ -45,7 +45,7 @@ impl Environment {
     pub(in crate::model::environment) fn buffer_fields(
         &mut self,
         input: &mut Input,
-        data: Vec<KeyedMessage>,
+        data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
         debug!("Buffering fields");
@@ -63,25 +63,25 @@ impl Environment {
         &mut self,
         input: &mut Input,
         domain_edges: DomainExtent<usize>,
-        data: Vec<KeyedMessage>,
+        data: &[KeyedMessage],
     ) -> Result<(), InputError> {
         let input_shape = input.shape()?;
 
-        self.fields.pressure = read_truncated_pressure(&data, domain_edges)?;
+        self.fields.pressure = read_truncated_pressure(data, domain_edges)?;
 
-        let geopotential = read_raw_field("z", input_shape, &data)?;
+        let geopotential = read_raw_field("z", input_shape, data)?;
         self.fields.height = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
-        let temperature = read_raw_field("t", input_shape, &data)?;
+        let temperature = read_raw_field("t", input_shape, data)?;
         self.fields.temperature = truncate_field_to_extent(&temperature, domain_edges);
 
-        let u_wind = read_raw_field("u", input_shape, &data)?;
+        let u_wind = read_raw_field("u", input_shape, data)?;
         self.fields.u_wind = truncate_field_to_extent(&u_wind, domain_edges);
 
-        let v_wind = read_raw_field("v", input_shape, &data)?;
+        let v_wind = read_raw_field("v", input_shape, data)?;
         self.fields.v_wind = truncate_field_to_extent(&v_wind, domain_edges);
 
-        let spec_humidity = read_raw_field("q", input_shape, &data)?;
+        let spec_humidity = read_raw_field("q", input_shape, data)?;
         self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges);
 
         Ok(())
@@ -147,7 +147,7 @@ impl Environment {
 /// and then casted to the 3d array expected by the
 /// [`accesser`](super::super::accesser).
 fn read_truncated_pressure(
-    levels_data: &Vec<KeyedMessage>,
+    levels_data: &[KeyedMessage],
     domain_edges: DomainExtent<usize>,
 ) -> Result<Array3<Float>, InputError> {
     let xy_shape = (
@@ -177,7 +177,7 @@ fn read_truncated_pressure(
 
 /// Function to get the list of unique levels
 /// of specified type in the provided GRIB files.
-fn list_levels(data: &Vec<KeyedMessage>) -> Result<Vec<i64>, InputError> {
+fn list_levels(data: &[KeyedMessage]) -> Result<Vec<i64>, InputError> {
     debug!("Getting levels list");
 
     let mut unique_levels: FxHashSet<i64> = FxHashSet::default();
@@ -209,7 +209,7 @@ fn list_levels(data: &Vec<KeyedMessage>) -> Result<Vec<i64>, InputError> {
 fn read_raw_field(
     short_name: &str,
     shape: (usize, usize),
-    data: &Vec<KeyedMessage>,
+    data: &[KeyedMessage],
 ) -> Result<Array3<Float>, InputError> {
     let data_levels = read_raw_messages(short_name, data)?;
     let result_data = messages_to_array(data_levels, shape)?;
@@ -221,7 +221,7 @@ fn read_raw_field(
 /// variable with given `short_name` on specified level type.
 fn read_raw_messages<'a>(
     short_name: &str,
-    data: &'a Vec<KeyedMessage>,
+    data: &'a [KeyedMessage],
 ) -> Result<Vec<&'a KeyedMessage>, InputError> {
     let mut data_levels: Vec<&KeyedMessage> = vec![];
 

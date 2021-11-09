@@ -169,8 +169,8 @@ impl Environment {
         let level_data = buffer::collect_fields(&config.input)?;
         let surface_data = buffer::collect_surfaces(&config.input)?;
 
-        new_env.buffer_fields(&mut config.input, level_data, domain_edges)?;
-        new_env.buffer_surface(&mut config.input, surface_data, domain_edges)?;
+        new_env.buffer_fields(&mut config.input, &level_data, domain_edges)?;
+        new_env.buffer_surface(&mut config.input, &surface_data, domain_edges)?;
 
         Ok(new_env)
     }
@@ -210,8 +210,8 @@ fn generate_domain_projection(domain: &Domain) -> Result<LambertConicConformal, 
 /// Function to get domain sides length
 /// in meters.
 fn measure_domain_sides(domain: &Domain) -> (Float, Float) {
-    let x_side = (domain.shape.0 - 1) as Float * domain.spacing;
-    let y_side = (domain.shape.1 - 1) as Float * domain.spacing;
+    let x_side = Float::from(domain.shape.0 - 1) * domain.spacing;
+    let y_side = Float::from(domain.shape.1 - 1) * domain.spacing;
 
     (x_side, y_side)
 }
@@ -239,8 +239,8 @@ fn compute_domain_edges(config: &mut Config, projection: &LambertConicConformal)
     let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (
-        sw_xy.0 + ((config.domain.shape.0 - 1) as Float * config.domain.spacing),
-        sw_xy.1 + ((config.domain.shape.1 - 1) as Float * config.domain.spacing),
+        sw_xy.0 + (Float::from(config.domain.shape.0 - 1) * config.domain.spacing),
+        sw_xy.1 + (Float::from(config.domain.shape.1 - 1) * config.domain.spacing),
     );
 
     let ne_lonlat = projection.inverse_project(ne_xy.0, ne_xy.1);

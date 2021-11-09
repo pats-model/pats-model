@@ -48,7 +48,7 @@ impl Environment {
     pub(in crate::model::environment) fn buffer_surface(
         &mut self,
         input: &mut Input,
-        data: Vec<KeyedMessage>,
+        data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
         debug!("Buffering surface");
@@ -64,28 +64,28 @@ impl Environment {
     fn assign_raw_surfaces(
         &mut self,
         input: &mut Input,
-        data: Vec<KeyedMessage>,
+        data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), InputError> {
         let input_shape = input.shape()?;
 
-        let geopotential = read_raw_surface("z", input_shape, &data)?;
+        let geopotential = read_raw_surface("z", input_shape, data)?;
         self.surface.height =
             truncate_surface_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
-        let pressure = read_raw_surface("sp", input_shape, &data)?;
+        let pressure = read_raw_surface("sp", input_shape, data)?;
         self.surface.pressure = truncate_surface_to_extent(&pressure, domain_edges);
 
-        let temperature = read_raw_surface("2t", input_shape, &data)?;
+        let temperature = read_raw_surface("2t", input_shape, data)?;
         self.surface.temperature = truncate_surface_to_extent(&temperature, domain_edges);
 
-        let dewpoint = read_raw_surface("2d", input_shape, &data)?;
+        let dewpoint = read_raw_surface("2d", input_shape, data)?;
         self.surface.dewpoint = truncate_surface_to_extent(&dewpoint, domain_edges);
 
-        let u_wind = read_raw_surface("10u", input_shape, &data)?;
+        let u_wind = read_raw_surface("10u", input_shape, data)?;
         self.surface.u_wind = truncate_surface_to_extent(&u_wind, domain_edges);
 
-        let v_wind = read_raw_surface("10v", input_shape, &data)?;
+        let v_wind = read_raw_surface("10v", input_shape, data)?;
         self.surface.v_wind = truncate_surface_to_extent(&v_wind, domain_edges);
 
         Ok(())
@@ -128,7 +128,7 @@ impl Environment {
 fn read_raw_surface(
     short_name: &str,
     shape: (usize, usize),
-    data: &Vec<KeyedMessage>,
+    data: &[KeyedMessage],
 ) -> Result<Array2<Float>, InputError> {
     let mut data_level = None;
 

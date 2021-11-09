@@ -182,7 +182,7 @@ impl Input {
     ///
     /// (Why it is neccessary)
     pub fn shape(&mut self) -> Result<(usize, usize), InputError> {
-        if let None = self.shape {
+        if self.shape.is_none() {
             let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
             self.distinct_lonlats = Some(distinct_lonlats);
             self.shape = Some(shape);
@@ -195,13 +195,13 @@ impl Input {
     ///
     /// (Why it is neccessary)
     pub fn distinct_lonlats(&mut self) -> Result<&LonLat<Vec<Float>>, InputError> {
-        if let None = self.distinct_lonlats {
+        if self.distinct_lonlats.is_none() {
             let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
-            self.distinct_lonlats = Some(distinct_lonlats.clone());
+            self.distinct_lonlats = Some(distinct_lonlats);
             self.shape = Some(shape);
         }
 
-        Ok(&self.distinct_lonlats.as_ref().unwrap())
+        Ok(self.distinct_lonlats.as_ref().unwrap())
     }
 
     /// Function to read distinct longitudes and latitudes

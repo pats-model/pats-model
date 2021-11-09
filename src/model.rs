@@ -200,7 +200,7 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     let x_coords = Array1::linspace(
         domain_anchor.0,
         domain_anchor.0
-            + ((model_core.config.domain.shape.0 - 1) as Float * model_core.config.domain.spacing),
+            + (Float::from(model_core.config.domain.shape.0 - 1) * model_core.config.domain.spacing),
         model_core.config.domain.shape.0 as usize,
     )
     .to_vec();
@@ -208,7 +208,7 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     let y_coords = Array1::linspace(
         domain_anchor.1,
         domain_anchor.1
-            + ((model_core.config.domain.shape.1 - 1) as Float * model_core.config.domain.spacing),
+            + (Float::from(model_core.config.domain.shape.1 - 1) * model_core.config.domain.spacing),
         model_core.config.domain.shape.1 as usize,
     )
     .to_vec();
