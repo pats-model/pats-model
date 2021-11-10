@@ -1,13 +1,13 @@
 # Parcel Ascent Tracing System (PATS)
 
-[![dependency status](https://deps.rs/repo/github/Quba1/PATS/status.svg)](https://deps.rs/repo/github/Quba1/PATS)
-[![license](https://img.shields.io/github/license/Quba1/PATS)](https://choosealicense.com/licenses/gpl-3.0/)
+[![dependency status](https://deps.rs/repo/github/pats-model/pats-model/status.svg)](https://deps.rs/repo/github/pats-model/pats-model)
+[![license](https://img.shields.io/github/license/pats-model/pats-model)](https://choosealicense.com/licenses/gpl-3.0/)
 
 Parcel Ascent Tracing System (PATS) is the numerical model for convective parcel ascent simulation in three-dimension developed as a Master's project at the School of Environemntal Sciences at the University of East Anglia.
 
 **The model is currently under development.** It will predict how convective air parcel behaves in conditions much more realistic then those assumed by so-called parcel theory.
 
-For the details on how to configure and run the model check the [documentation](https://quba1.github.io/PATS/).
+For the details on how to configure and run the model check the [documentation](https://pats-model.github.io/pats-docs/).
 
 ## Unique features of PATS
 

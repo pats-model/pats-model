@@ -17,15 +17,14 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
-//! Parcel Ascent Tracing System (PATS) is the numerical model
-//! for convective parcel ascent simulation in three-dimension
-//! developed as a Master's project at the School of Environmental
-//! Sciences at the University of East Anglia.
-//!
-//! The model predicts how convective air parcel behaves in conditions
-//! much more realistic then those assumed by classical parcel theory.
-//!
-//! **The model is currently under development.**
+//! Technical documentation of Parcel Ascent Tracing System (PATS) 
+//! - the numerical model for convective parcel ascent 
+//! simulation in three-dimensions.
+//! 
+//! This documentation provides a description of functions and structures
+//! used in the model. Its main purpose is to make it easier to maintain
+//! and contribute to the project codebase. However, it can be also useful
+//! for users who want to understand the model in more detail.
 
 mod constants;
 mod errors;
