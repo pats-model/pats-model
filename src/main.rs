@@ -17,9 +17,8 @@ You should have received a copy of the GNU General Public License
 along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/licenses/.
 */
 
-//! Technical documentation of Parcel Ascent Tracing System (PATS) 
-//! - the numerical model for convective parcel ascent 
-//! simulation in three-dimensions.
+//! Technical documentation of Parcel Ascent Tracing System (PATS) -
+//! the numerical model for convective parcel ascent simulation in three-dimensions.
 //! 
 //! This documentation provides a description of functions and structures
 //! used in the model. Its main purpose is to make it easier to maintain

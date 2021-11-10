@@ -34,7 +34,7 @@ pub const WGS84_B: Float = 6_356_752.314_245;
 pub const WGS84_E: Float =
     0.081_819_190_842_965_558_441_157_725_155_790_103_599_429_130_554_199_218_75;
 
-///WGS84 ellipsoid Ramanujan's $h$ parameter
+///WGS84 ellipsoid Ramanujan's `h` parameter
 pub const WGS84_H: Float =
     ((WGS84_A - WGS84_B) * (WGS84_A - WGS84_B)) / ((WGS84_A + WGS84_B) * (WGS84_A - WGS84_B));
 
