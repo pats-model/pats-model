@@ -6,3 +6,5 @@ Cargo.lock
 /output
 /docs
 /guide/book
+/utils/ada-config.sh
+/utils/data
