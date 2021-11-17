@@ -27,7 +27,10 @@ use crate::{
     },
     Float,
 };
-use eccodes::{KeyType::{self, FloatArray, Int, Str}, KeyedMessage};
+use eccodes::{
+    KeyType::{self, FloatArray, Int, Str},
+    KeyedMessage,
+};
 use floccus::constants::G;
 use log::debug;
 use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
@@ -82,7 +85,9 @@ impl Environment {
         self.fields.v_wind = truncate_field_to_extent(&v_wind, domain_edges);
 
         let spec_humidity = read_raw_field("q", input_shape, data)?;
-        self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges);
+        self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges)
+            .mapv(|v| if v <= 0.0 { 1.0e-8 } else { v }); // check for negative values of specific humidity and
+                                                          // replace them with the smallest positive value
 
         Ok(())
     }
