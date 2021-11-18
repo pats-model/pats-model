@@ -35,9 +35,9 @@ use indicatif::{ProgressBar, ProgressStyle};
 use log::{debug, error, info};
 use ndarray::Array1;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::io::Error;
 use std::{
     fs,
+    io::Error,
     path::Path,
     sync::{mpsc, Arc},
 };
@@ -101,14 +101,13 @@ pub fn main() -> Result<(), ModelError> {
             }
             Err(err) => {
                 error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
+                // this is neccessary to make sure that all error messages
+                // are fully written to stdout before the progress bar updates
+                println!("");
             }
         }
         parcels_bar.inc(1);
     }
-
-    // this is neccessary to make sure that all error messages
-    // are fully written to stdout before the progress bar updates
-    info!("");
 
     parcels_bar.finish_with_message("All parcels finished");
     info!("Writing output");
@@ -200,7 +199,8 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     let x_coords = Array1::linspace(
         domain_anchor.0,
         domain_anchor.0
-            + (Float::from(model_core.config.domain.shape.0 - 1) * model_core.config.domain.spacing),
+            + (Float::from(model_core.config.domain.shape.0 - 1)
+                * model_core.config.domain.spacing),
         model_core.config.domain.shape.0 as usize,
     )
     .to_vec();
@@ -208,7 +208,8 @@ fn prepare_parcels_list(model_core: &Core) -> Vec<(Float, Float)> {
     let y_coords = Array1::linspace(
         domain_anchor.1,
         domain_anchor.1
-            + (Float::from(model_core.config.domain.shape.1 - 1) * model_core.config.domain.spacing),
+            + (Float::from(model_core.config.domain.shape.1 - 1)
+                * model_core.config.domain.spacing),
         model_core.config.domain.shape.1 as usize,
     )
     .to_vec();
