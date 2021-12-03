@@ -25,6 +25,9 @@ mod environment;
 mod parcel;
 mod vec3;
 
+#[cfg(test)]
+mod super_tests;
+
 use crate::model::parcel::conv_params::ConvectiveParams;
 use crate::{
     errors::ModelError,

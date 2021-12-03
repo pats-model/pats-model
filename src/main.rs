@@ -29,9 +29,6 @@ mod constants;
 mod errors;
 mod model;
 
-#[cfg(test)]
-mod super_tests;
-
 use cap::Cap;
 use env_logger::Env;
 use log::{error, info};
