@@ -8,3 +8,4 @@ Cargo.lock
 /guide/book
 /utils/ada-config.sh
 /utils/data
+/test-data/*.grib
