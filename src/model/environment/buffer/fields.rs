@@ -182,6 +182,9 @@ fn read_truncated_pressure(
 
 /// Function to get the list of unique levels
 /// of specified type in the provided GRIB files.
+/// 
+/// This function uses `FxHashSet` to get unique list of levels,
+/// which in benchmarsk showed outstanding performance.
 fn list_levels(data: &[KeyedMessage]) -> Result<Vec<i64>, InputError> {
     debug!("Getting levels list");
 
