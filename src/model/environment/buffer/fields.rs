@@ -47,7 +47,7 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_fields(
         &mut self,
-        input: &mut Input,
+        input: &Input,
         data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
@@ -55,7 +55,7 @@ impl Environment {
 
         self.assign_raw_fields(input, domain_edges, data)?;
         self.compute_intermediate_fields();
-        self.cast_lonlat_fields_coords(input.distinct_lonlats()?, domain_edges);
+        self.cast_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
 
         Ok(())
     }
@@ -64,11 +64,11 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_fields(
         &mut self,
-        input: &mut Input,
+        input: &Input,
         domain_edges: DomainExtent<usize>,
         data: &[KeyedMessage],
     ) -> Result<(), InputError> {
-        let input_shape = input.shape()?;
+        let input_shape = input.shape;
 
         self.fields.pressure = read_truncated_pressure(data, domain_edges)?;
 

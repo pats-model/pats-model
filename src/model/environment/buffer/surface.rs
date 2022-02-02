@@ -47,14 +47,14 @@ impl Environment {
     /// most NWP models, therefore they need to be computed.
     pub(in crate::model::environment) fn buffer_surface(
         &mut self,
-        input: &mut Input,
+        input: &Input,
         data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
         debug!("Buffering surface");
 
         self.assign_raw_surfaces(input, data, domain_edges)?;
-        self.cast_lonlat_surface_coords(input.distinct_lonlats()?, domain_edges);
+        self.cast_lonlat_surface_coords(&input.distinct_lonlats, domain_edges);
 
         Ok(())
     }
@@ -63,11 +63,11 @@ impl Environment {
     /// and buffers them in domain + margins extent.
     fn assign_raw_surfaces(
         &mut self,
-        input: &mut Input,
+        input: &Input,
         data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), InputError> {
-        let input_shape = input.shape()?;
+        let input_shape = input.shape;
 
         let geopotential = read_raw_surface("z", input_shape, data)?;
         self.surface.height =

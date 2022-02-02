@@ -167,41 +167,34 @@ pub struct Input {
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    #[serde(skip)]
-    shape: Option<(usize, usize)>,
+    #[serde(default = "Input::uninitialized_shape")]
+    pub shape: (usize, usize),
 
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    #[serde(skip)]
-    distinct_lonlats: Option<LonLat<Vec<Float>>>,
+    #[serde(default = "Input::uninitialized_distinct_lonlats")]
+    pub distinct_lonlats: LonLat<Vec<Float>>,
 }
 
 impl Input {
-    /// (TODO: What it is)
-    ///
-    /// (Why it is neccessary)
-    pub fn shape(&mut self) -> Result<(usize, usize), InputError> {
-        if self.shape.is_none() {
-            let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
-            self.distinct_lonlats = Some(distinct_lonlats);
-            self.shape = Some(shape);
-        }
+    fn uninitialized_shape() -> (usize, usize) {
+        (0, 0)
+    }
 
-        Ok(self.shape.unwrap())
+    fn uninitialized_distinct_lonlats() -> LonLat<Vec<Float>> {
+        (vec![], vec![])
     }
 
     /// (TODO: What it is)
     ///
     /// (Why it is neccessary)
-    pub fn distinct_lonlats(&mut self) -> Result<&LonLat<Vec<Float>>, InputError> {
-        if self.distinct_lonlats.is_none() {
-            let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
-            self.distinct_lonlats = Some(distinct_lonlats);
-            self.shape = Some(shape);
-        }
+    pub fn init_shape_and_distinct_lonlats(&mut self) -> Result<(), InputError> {
+        let (distinct_lonlats, shape) = self.read_distinct_lonlats_and_shape()?;
+        self.distinct_lonlats = distinct_lonlats;
+        self.shape = shape;
 
-        Ok(self.distinct_lonlats.as_ref().unwrap())
+        Ok(())
     }
 
     /// Function to read distinct longitudes and latitudes
@@ -360,10 +353,11 @@ impl Config {
     /// deserializing configuration and checking it.
     pub fn new_from_file(file_path: &Path) -> Result<Config, ConfigError> {
         let data = fs::read(file_path)?;
-        let config: Config = serde_yaml::from_slice(data.as_slice())?;
+        let mut config: Config = serde_yaml::from_slice(data.as_slice())?;
 
         config.domain.check_bounds()?;
         config.resources.check_bounds()?;
+        config.input.init_shape_and_distinct_lonlats()?;
 
         Ok(config)
     }

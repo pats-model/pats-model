@@ -150,7 +150,7 @@ impl Environment {
     /// Environment struct constructor
     /// responsible for reading GRIB files
     /// and buffering data in domain extent.
-    pub fn new(config: &mut Config) -> Result<Self, EnvironmentError> {
+    pub fn new(config: &Config) -> Result<Self, EnvironmentError> {
         debug!("Creating new enviroment");
 
         let fields = Fields::new_empty();
@@ -169,8 +169,8 @@ impl Environment {
         let level_data = buffer::collect_fields(&config.input)?;
         let surface_data = buffer::collect_surfaces(&config.input)?;
 
-        new_env.buffer_fields(&mut config.input, &level_data, domain_edges)?;
-        new_env.buffer_surface(&mut config.input, &surface_data, domain_edges)?;
+        new_env.buffer_fields(&config.input, &level_data, domain_edges)?;
+        new_env.buffer_surface(&config.input, &surface_data, domain_edges)?;
 
         Ok(new_env)
     }
@@ -235,7 +235,7 @@ fn approx_central_lon(lon_0: Float, lat_0: Float, distance: Float) -> Float {
 }
 
 /// Function to get a lat-lon extent of domain with margins.
-fn compute_domain_edges(config: &mut Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
+fn compute_domain_edges(config: &Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
     let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (
@@ -257,7 +257,7 @@ fn compute_domain_edges(config: &mut Config, projection: &LambertConicConformal)
         domain_extent.north, domain_extent.south, domain_extent.east, domain_extent.west
     );
 
-    let distinct_lonlats = &config.input.distinct_lonlats()?;
+    let distinct_lonlats = &config.input.distinct_lonlats;
     let domain_edges = find_extent_edge_indices(distinct_lonlats, domain_extent);
 
     Ok(domain_edges)
