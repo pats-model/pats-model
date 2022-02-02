@@ -181,94 +181,45 @@ mod tests {
 
     #[test]
     fn bilinear() {
-        let p1 = Point2D {
-            x: 0.0,
-            y: 0.0,
-            value: 1.0,
-        };
+        let mut points = vec![];
 
-        let p2 = Point2D {
-            x: 0.0,
-            y: 1.0,
-            value: 2.0,
-        };
+        for x in 0..=1 {
+            for y in 0..=1 {
+                let point = Point2D {
+                    x: x as Float,
+                    y: y as Float,
+                    value: (2 * x + y + 1) as Float,
+                };
 
-        let p3 = Point2D {
-            x: 1.0,
-            y: 0.0,
-            value: 3.0,
-        };
+                points.push(point);
+            }
+        }
 
-        let p4 = Point2D {
-            x: 1.0,
-            y: 1.0,
-            value: 4.0,
-        };
-
-        let r = interpolate_bilinear(0.5, 0.5, [p1, p2, p3, p4]);
+        let r = interpolate_bilinear(0.5, 0.5, points.try_into().unwrap());
 
         assert_approx_eq!(Float, r, 2.5);
     }
 
     #[test]
     fn trilinear() {
-        let p1 = Point3D {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            value: 1.0,
-        };
+        let mut points = vec![];
 
-        let p2 = Point3D {
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-            value: 2.0,
-        };
+        for x in 0..=1 {
+            for y in 0..=1 {
+                for z in 0..=1 {
+                    let point = Point3D {
+                        x: x as Float,
+                        y: y as Float,
+                        z: z as Float,
+                        value: (4 * x + 2 * y + z + 1) as Float,
+                    };
 
-        let p3 = Point3D {
-            x: 1.0,
-            y: 0.0,
-            z: 0.0,
-            value: 3.0,
-        };
+                    points.push(point);
+                }
+            }
+        }
 
-        let p4 = Point3D {
-            x: 1.0,
-            y: 1.0,
-            z: 0.0,
-            value: 4.0,
-        };
-
-        let p5 = Point3D {
-            x: 0.0,
-            y: 0.0,
-            z: 1.0,
-            value: 5.0,
-        };
-
-        let p6 = Point3D {
-            x: 0.0,
-            y: 1.0,
-            z: 1.0,
-            value: 6.0,
-        };
-
-        let p7 = Point3D {
-            x: 1.0,
-            y: 0.0,
-            z: 1.0,
-            value: 7.0,
-        };
-
-        let p8 = Point3D {
-            x: 1.0,
-            y: 1.0,
-            z: 1.0,
-            value: 8.0,
-        };
-
-        let r = interpolate_tilinear(0.5, 0.5, 0.5, [p1, p2, p3, p4, p5, p6, p7, p8]);
+        let r = interpolate_tilinear(0.5, 0.5, 0.5, points.try_into().unwrap());
 
         assert_approx_eq!(Float, r, 4.5);
     }
