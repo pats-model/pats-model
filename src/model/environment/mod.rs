@@ -22,17 +22,19 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 mod accesser;
 mod bisection;
-mod buffer;
+mod fields;
 mod interpolation;
 mod projection;
+mod surfaces;
 
 use super::configuration::{Config, Domain};
 use crate::constants::{NS_C_EARTH, WE_C_EARTH};
 use crate::errors::InputError;
 use crate::model::environment::projection::LambertConicConformal;
 use crate::{errors::EnvironmentError, Float};
+use fields::Fields;
 use log::debug;
-use ndarray::{Array2, Array3};
+use surfaces::Surfaces;
 
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
 struct DomainExtent<T> {
@@ -52,41 +54,6 @@ pub enum FieldTypes {
     VWind,
 }
 
-/// Struct for storing environmental variables
-/// from levels above ground (currently pressure levels).
-///
-/// To limit IO operations and reduce performance overhead
-/// of the model boundary conditions data is stored in the
-/// memory as 3D arrays.
-#[derive(Debug)]
-pub struct Fields {
-    temperature: Array3<Float>,
-    pressure: Array3<Float>,
-    height: Array3<Float>,
-    u_wind: Array3<Float>,
-    v_wind: Array3<Float>,
-    spec_humidity: Array3<Float>,
-    virtual_temp: Array3<Float>,
-    lons: Array2<Float>,
-    lats: Array2<Float>,
-}
-
-impl Fields {
-    fn new_empty() -> Self {
-        Fields {
-            temperature: Array3::default((0, 0, 0)),
-            pressure: Array3::default((0, 0, 0)),
-            height: Array3::default((0, 0, 0)),
-            u_wind: Array3::default((0, 0, 0)),
-            v_wind: Array3::default((0, 0, 0)),
-            spec_humidity: Array3::default((0, 0, 0)),
-            virtual_temp: Array3::default((0, 0, 0)),
-            lons: Array2::default((0, 0)),
-            lats: Array2::default((0, 0)),
-        }
-    }
-}
-
 /// Enum containing surface fields
 /// that can be requested.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -99,52 +66,6 @@ pub enum SurfaceTypes {
     UWind,
     #[cfg(feature = "3d")]
     VWind,
-}
-
-/// Struct for storing environmental variables at/near surface.
-///
-/// To limit IO operations and reduce performance overhead
-/// of the model surface data is stored in the
-/// memory as 2D arrays.
-#[derive(Debug)]
-pub struct Surfaces {
-    lons: Array2<Float>,
-    lats: Array2<Float>,
-    height: Array2<Float>,
-    //
-    pressure: Array2<Float>,
-    temperature: Array2<Float>,
-    dewpoint: Array2<Float>,
-    u_wind: Array2<Float>,
-    v_wind: Array2<Float>,
-    //
-    pressure_coeffs: Array2<[Float; 16]>,
-    temperature_coeffs: Array2<[Float; 16]>,
-    dewpoint_coeffs: Array2<[Float; 16]>,
-    u_wind_coeffs: Array2<[Float; 16]>,
-    v_wind_coeffs: Array2<[Float; 16]>,
-}
-
-impl Surfaces {
-    fn new_empty() -> Self {
-        Surfaces {
-            lons: Array2::default((0, 0)),
-            lats: Array2::default((0, 0)),
-            height: Array2::default((0, 0)),
-            //
-            pressure: Array2::default((0, 0)),
-            temperature: Array2::default((0, 0)),
-            dewpoint: Array2::default((0, 0)),
-            u_wind: Array2::default((0, 0)),
-            v_wind: Array2::default((0, 0)),
-            //
-            pressure_coeffs: Array2::default((0, 0)),
-            temperature_coeffs: Array2::default((0, 0)),
-            dewpoint_coeffs: Array2::default((0, 0)),
-            u_wind_coeffs: Array2::default((0, 0)),
-            v_wind_coeffs: Array2::default((0, 0)),
-        }
-    }
 }
 
 /// Environment main struct storing and providing
@@ -167,26 +88,17 @@ impl Environment {
     pub fn new(config: &Config) -> Result<Self, EnvironmentError> {
         debug!("Creating new enviroment");
 
-        let fields = Fields::new_empty();
-        let surface = Surfaces::new_empty();
-
         let projection = generate_domain_projection(&config.domain)?;
-
         let domain_edges = compute_domain_edges(config, &projection)?;
 
-        let mut new_env = Environment {
+        let fields = Fields::new(&config.input, domain_edges);
+        let surfaces = Surfaces::new(&config.input, domain_edges);
+
+        Ok(Environment {
             fields,
-            surfaces: surface,
+            surfaces,
             projection,
-        };
-
-        let level_data = buffer::collect_fields(&config.input)?;
-        let surface_data = buffer::collect_surfaces(&config.input)?;
-
-        new_env.buffer_fields(&config.input, &level_data, domain_edges)?;
-        new_env.buffer_surfaces(&config.input, &surface_data, domain_edges)?;
-
-        Ok(new_env)
+        })
     }
 }
 

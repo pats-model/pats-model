@@ -19,14 +19,13 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 //! Sub-module responsible for handling
 //! pressure level data buffering.
+use crate::model::configuration;
 use crate::{
     errors::{EnvironmentError, InputError},
-    model::{
-        configuration::Input,
-        environment::{DomainExtent, Environment},
-    },
+    model::{configuration::Input, environment::DomainExtent},
     Float,
 };
+use eccodes::{CodesHandle, FallibleIterator, ProductKind::GRIB};
 use eccodes::{
     KeyType::{self, FloatArray, Int, Str},
     KeyedMessage,
@@ -36,110 +35,173 @@ use log::debug;
 use ndarray::{concatenate, s, stack, Array, Array2, Array3, Axis, Zip};
 use rustc_hash::FxHashSet;
 
-impl Environment {
-    /// Function to read pressure level data from GRIB input
-    /// in extent covering domain and margins and buffer it.
-    ///
-    /// Data from GRIB files can only be read in a whole
-    /// GRIB domain, therefore it needs to be truncated.
-    ///
-    /// Some useful variables are not provided by
-    /// most NWP models, therefore they need to be computed.
-    pub(in crate::model::environment) fn buffer_fields(
-        &mut self,
-        input: &Input,
-        data: &[KeyedMessage],
-        domain_edges: DomainExtent<usize>,
-    ) -> Result<(), EnvironmentError> {
-        debug!("Buffering fields");
+#[derive(Debug)]
+struct RawFields {
+    geopotential: Array3<Float>,
+    pressure: Array3<Float>,
+    temperature: Array3<Float>,
+    specific_humidity: Array3<Float>,
+    u_wind: Array3<Float>,
+    v_wind: Array3<Float>,
+    virtual_temperature: Array3<Float>,
+}
 
-        self.assign_raw_fields(input, domain_edges, data)?;
-        self.compute_intermediate_fields();
-        self.cast_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
+/// Struct for storing environmental variables
+/// from levels above ground (currently pressure levels).
+///
+/// To limit IO operations and reduce performance overhead
+/// of the model boundary conditions data is stored in the
+/// memory as 3D arrays.
+#[derive(Debug)]
+pub struct Fields {
+    temperature: Array3<Float>,
+    pressure: Array3<Float>,
+    height: Array3<Float>,
+    u_wind: Array3<Float>,
+    v_wind: Array3<Float>,
+    spec_humidity: Array3<Float>,
+    virtual_temp: Array3<Float>,
+    lons: Array2<Float>,
+    lats: Array2<Float>,
+}
 
-        Ok(())
+impl Fields {
+    pub fn new(input: &Input, domain_edges: DomainExtent<usize>) -> Fields {}
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn collect(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError> {
+    let mut data_levels: Vec<KeyedMessage> = vec![];
+
+    for file in &input.data_files {
+        let handle = CodesHandle::new_from_file(file, GRIB)?;
+
+        let mut data: Vec<KeyedMessage> = handle
+            .filter(|msg| {
+                Ok(
+                    msg.read_key("typeOfLevel")?.value == Str(input.level_type.clone())
+                        && (msg.read_key("shortName")?.value == Str("z".to_string())
+                            || msg.read_key("shortName")?.value == Str("q".to_string())
+                            || msg.read_key("shortName")?.value == Str("t".to_string())
+                            || msg.read_key("shortName")?.value == Str("u".to_string())
+                            || msg.read_key("shortName")?.value == Str("v".to_string())),
+                )
+            })
+            .collect()?;
+
+        data_levels.append(&mut data);
     }
 
-    /// Reads variables on pressure levels from GRIB file
-    /// and buffers them in domain + margins extent.
-    fn assign_raw_fields(
-        &mut self,
-        input: &Input,
-        domain_edges: DomainExtent<usize>,
-        data: &[KeyedMessage],
-    ) -> Result<(), InputError> {
-        let input_shape = input.shape;
-
-        self.fields.pressure = read_truncated_pressure(data, domain_edges)?;
-
-        let geopotential = read_raw_field("z", input_shape, data)?;
-        self.fields.height = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
-
-        let temperature = read_raw_field("t", input_shape, data)?;
-        self.fields.temperature = truncate_field_to_extent(&temperature, domain_edges);
-
-        let u_wind = read_raw_field("u", input_shape, data)?;
-        self.fields.u_wind = truncate_field_to_extent(&u_wind, domain_edges);
-
-        let v_wind = read_raw_field("v", input_shape, data)?;
-        self.fields.v_wind = truncate_field_to_extent(&v_wind, domain_edges);
-
-        let spec_humidity = read_raw_field("q", input_shape, data)?;
-        self.fields.spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges)
-            .mapv(|v| if v <= 0.0 { 1.0e-8 } else { v }); // check for negative values of specific humidity and
-                                                          // replace them with the smallest positive value
-
-        Ok(())
+    if data_levels.is_empty() {
+        return Err(InputError::DataNotSufficient(
+            "Not enough variables on isobaric levels, check your input data",
+        ));
     }
 
-    /// Computes and buffers additional pressure level data from
-    /// values previously read from the GRIB file.
-    fn compute_intermediate_fields(&mut self) {
-        let mut virtual_temperature: Array3<Float> =
-            Array3::zeros(self.fields.temperature.raw_dim());
+    Ok(data_levels)
+}
 
-        Zip::from(&mut virtual_temperature)
-            .and(&self.fields.temperature)
-            .and(&self.fields.spec_humidity)
-            .for_each(|tv, &t, &q| {
-                *tv = floccus::virtual_temperature::general3(t, q).expect(
-                    "Error while computing virtual temperature: variable out of reasonable bounds",
-                );
-            });
+/// Function to read pressure level data from GRIB input
+/// in extent covering domain and margins and buffer it.
+///
+/// Data from GRIB files can only be read in a whole
+/// GRIB domain, therefore it needs to be truncated.
+///
+/// Some useful variables are not provided by
+/// most NWP models, therefore they need to be computed.
+fn buffer(
+    mut fields: Fields,
+    input: &Input,
+    data: &[KeyedMessage],
+    domain_edges: DomainExtent<usize>,
+) -> Result<Fields, EnvironmentError> {
+    debug!("Buffering fields");
 
-        self.fields.virtual_temp = virtual_temperature;
+    let (lons, lats) = obtain_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
+    fields.lons = lons;
+    fields.lats = lats;
+
+    let raw_fields = obtain_raw_fields(input, domain_edges, data)?;
+
+    Ok(fields)
+}
+
+/// Buffers longitudes and latitudes of pressure level data gridpoints.
+fn obtain_lonlat_fields_coords(
+    distinct_lonlats: &(Vec<Float>, Vec<Float>),
+    domain_edges: DomainExtent<usize>,
+) -> (Array2<Float>, Array2<Float>) {
+    let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
+    let lons;
+
+    if domain_edges.west < domain_edges.east {
+        lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
+    } else {
+        let left_half = &distinct_lonlats.0[domain_edges.east..];
+        let right_half = &distinct_lonlats.0[..=domain_edges.west];
+
+        lons = [left_half, right_half].concat();
     }
 
-    /// Buffers longitudes and latitudes of pressure level data gridpoints.
-    fn cast_lonlat_fields_coords(
-        &mut self,
-        distinct_lonlats: &(Vec<Float>, Vec<Float>),
-        domain_edges: DomainExtent<usize>,
-    ) {
-        let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
-        let lons;
+    let lons = Array::from_vec(lons);
+    let lats = Array::from_vec(lats);
 
-        if domain_edges.west < domain_edges.east {
-            lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
+    let lons_view = vec![lons.view(); lats.len()];
+    let lats_view = vec![lats.view(); lons.len()];
+
+    let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
+    let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
+
+    (lons, lats)
+}
+
+/// Reads variables on pressure levels from GRIB file
+/// and buffers them in domain + margins extent.
+fn obtain_raw_fields(
+    input: &Input,
+    domain_edges: DomainExtent<usize>,
+    data: &[KeyedMessage],
+) -> Result<RawFields, InputError> {
+    let input_shape = input.shape;
+
+    let pressure = read_truncated_pressure(data, domain_edges)?;
+
+    let geopotential = read_raw_field("z", input_shape, data)?;
+    let geopotential = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
+
+    let temperature = read_raw_field("t", input_shape, data)?;
+    let temperature = truncate_field_to_extent(&temperature, domain_edges);
+
+    let u_wind = read_raw_field("u", input_shape, data)?;
+    let u_wind = truncate_field_to_extent(&u_wind, domain_edges);
+
+    let v_wind = read_raw_field("v", input_shape, data)?;
+    let v_wind = truncate_field_to_extent(&v_wind, domain_edges);
+
+    //specific humidity needs a check for negative values
+    //which are replaced with the smallest positive value
+    let specific_humidity = read_raw_field("q", input_shape, data)?;
+    let specific_humidity = truncate_field_to_extent(&specific_humidity, domain_edges).mapv(|v| {
+        if v <= 0.0 {
+            1.0e-8
         } else {
-            let left_half = &distinct_lonlats.0[domain_edges.east..];
-            let right_half = &distinct_lonlats.0[..=domain_edges.west];
-
-            lons = [left_half, right_half].concat();
+            v
         }
+    });
 
-        let lons = Array::from_vec(lons);
-        let lats = Array::from_vec(lats);
+    let virtual_temperature = compute_vtemp_field(&temperature, &specific_humidity);
 
-        let lons_view = vec![lons.view(); lats.len()];
-        let lats_view = vec![lats.view(); lons.len()];
-
-        let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
-        let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
-
-        self.fields.lons = lons;
-        self.fields.lats = lats;
-    }
+    Ok(RawFields {
+        geopotential,
+        pressure,
+        temperature,
+        specific_humidity,
+        u_wind,
+        v_wind,
+        virtual_temperature,
+    })
 }
 
 /// Creates a 3d array of pressure data of shape
@@ -182,7 +244,7 @@ fn read_truncated_pressure(
 
 /// Function to get the list of unique levels
 /// of specified type in the provided GRIB files.
-/// 
+///
 /// This function uses `FxHashSet` to get unique list of levels,
 /// which in benchmarsk showed outstanding performance.
 fn list_levels(data: &[KeyedMessage]) -> Result<Vec<i64>, InputError> {
@@ -318,4 +380,24 @@ fn truncate_field_to_extent(
     let right_half = truncated_field.slice(s![.., ..=domain_edges.east, ..]);
     let truncated_field = concatenate![Axis(1), left_half, right_half];
     truncated_field.to_owned()
+}
+
+/// Computes and buffers additional pressure level data from
+/// values previously read from the GRIB file.
+fn compute_vtemp_field(
+    temperature: &Array3<Float>,
+    specific_humidity: &Array3<Float>,
+) -> Array3<Float> {
+    let mut virtual_temperature: Array3<Float> = Array3::zeros(temperature.raw_dim());
+
+    Zip::from(&mut virtual_temperature)
+        .and(temperature)
+        .and(specific_humidity)
+        .for_each(|tv, &t, &q| {
+            *tv = floccus::virtual_temperature::general3(t, q).expect(
+                "Error while computing virtual temperature: variable out of reasonable bounds",
+            );
+        });
+
+    virtual_temperature
 }
