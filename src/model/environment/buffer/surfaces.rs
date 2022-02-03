@@ -45,23 +45,26 @@ impl Environment {
     ///
     /// Some useful surface variables are not provided by
     /// most NWP models, therefore they need to be computed.
-    pub(in crate::model::environment) fn buffer_surface(
+    pub(in crate::model::environment) fn buffer_surfaces(
         &mut self,
         input: &Input,
         data: &[KeyedMessage],
         domain_edges: DomainExtent<usize>,
     ) -> Result<(), EnvironmentError> {
-        debug!("Buffering surface");
+        debug!("Buffering surfaces");
 
-        self.assign_raw_surfaces(input, data, domain_edges)?;
-        self.cast_lonlat_surface_coords(&input.distinct_lonlats, domain_edges);
+        let (lons, lats) = obtain_lonlat_surface_coords(&input.distinct_lonlats, domain_edges);
+        self.surfaces.lons = lons;
+        self.surfaces.lats = lats;
+        
+        self.assign_approx_coeffs(input, data, domain_edges)?;
 
         Ok(())
     }
 
     /// Reads variables on surface level from GRIB file
     /// and buffers them in domain + margins extent.
-    fn assign_raw_surfaces(
+    fn assign_approx_coeffs(
         &mut self,
         input: &Input,
         data: &[KeyedMessage],
@@ -70,57 +73,54 @@ impl Environment {
         let input_shape = input.shape;
 
         let geopotential = read_raw_surface("z", input_shape, data)?;
-        self.surface.height =
-            truncate_surface_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
+        self.surfaces.height = truncate_surface(&geopotential, domain_edges).mapv(|v| v / G);
 
         let pressure = read_raw_surface("sp", input_shape, data)?;
-        self.surface.pressure = truncate_surface_to_extent(&pressure, domain_edges);
+        self.surfaces.pressure = truncate_surface(&pressure, domain_edges);
 
         let temperature = read_raw_surface("2t", input_shape, data)?;
-        self.surface.temperature = truncate_surface_to_extent(&temperature, domain_edges);
+        self.surfaces.temperature = truncate_surface(&temperature, domain_edges);
 
         let dewpoint = read_raw_surface("2d", input_shape, data)?;
-        self.surface.dewpoint = truncate_surface_to_extent(&dewpoint, domain_edges);
+        self.surfaces.dewpoint = truncate_surface(&dewpoint, domain_edges);
 
         let u_wind = read_raw_surface("10u", input_shape, data)?;
-        self.surface.u_wind = truncate_surface_to_extent(&u_wind, domain_edges);
+        self.surfaces.u_wind = truncate_surface(&u_wind, domain_edges);
 
         let v_wind = read_raw_surface("10v", input_shape, data)?;
-        self.surface.v_wind = truncate_surface_to_extent(&v_wind, domain_edges);
+        self.surfaces.v_wind = truncate_surface(&v_wind, domain_edges);
 
         Ok(())
     }
+}
 
-    /// Buffers longitudes and latitudes of surface data gridpoints.
-    fn cast_lonlat_surface_coords(
-        &mut self,
-        distinct_lonlats: &(Vec<Float>, Vec<Float>),
-        domain_edges: DomainExtent<usize>,
-    ) {
-        let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
-        let lons;
+/// Buffers longitudes and latitudes of surface data gridpoints.
+fn obtain_lonlat_surface_coords(
+    distinct_lonlats: &(Vec<Float>, Vec<Float>),
+    domain_edges: DomainExtent<usize>,
+) -> (Array2<Float>, Array2<Float>) {
+    let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
+    let lons;
 
-        if domain_edges.west < domain_edges.east {
-            lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
-        } else {
-            let left_half = &distinct_lonlats.0[domain_edges.east..];
-            let right_half = &distinct_lonlats.0[..=domain_edges.west];
+    if domain_edges.west < domain_edges.east {
+        lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
+    } else {
+        let left_half = &distinct_lonlats.0[domain_edges.east..];
+        let right_half = &distinct_lonlats.0[..=domain_edges.west];
 
-            lons = [left_half, right_half].concat();
-        }
-
-        let lons = Array::from_vec(lons);
-        let lats = Array::from_vec(lats);
-
-        let lons_view = vec![lons.view(); lats.len()];
-        let lats_view = vec![lats.view(); lons.len()];
-
-        let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
-        let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
-
-        self.surface.lons = lons;
-        self.surface.lats = lats;
+        lons = [left_half, right_half].concat();
     }
+
+    let lons = Array::from_vec(lons);
+    let lats = Array::from_vec(lats);
+
+    let lons_view = vec![lons.view(); lats.len()];
+    let lats_view = vec![lats.view(); lons.len()];
+
+    let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
+    let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
+
+    (lons, lats)
 }
 
 /// Reads all values in GRIB file at surface level
@@ -169,10 +169,7 @@ fn read_raw_surface(
 
 /// Truncates surface data array from GRIB file to
 /// cover only the domain + margins extent.
-fn truncate_surface_to_extent(
-    raw_field: &Array2<Float>,
-    domain_edges: DomainExtent<usize>,
-) -> Array2<Float> {
+fn truncate_surface(raw_field: &Array2<Float>, domain_edges: DomainExtent<usize>) -> Array2<Float> {
     //truncate in NS axis
     let truncated_field = raw_field.slice(s![.., domain_edges.north..=domain_edges.south]);
 
@@ -185,4 +182,8 @@ fn truncate_surface_to_extent(
     let right_half = truncated_field.slice(s![..=domain_edges.east, ..]);
     let truncated_field = concatenate![Axis(0), left_half, right_half];
     truncated_field.to_owned()
+}
+
+fn compute_approx_coeffs() -> Array2<[Float; 16]> {
+    Array2::default((0, 0))
 }

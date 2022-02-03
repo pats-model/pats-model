@@ -24,7 +24,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 use super::ParcelState;
 use crate::{
     errors::ParcelError,
-    model::environment::{EnvFields::VirtualTemperature, Environment},
+    model::environment::{FieldTypes::VirtualTemperature, Environment},
     Float,
 };
 use float_cmp::approx_eq;

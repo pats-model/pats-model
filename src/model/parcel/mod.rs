@@ -36,13 +36,13 @@ use super::{
     configuration::Config,
     environment::{
         Environment,
-        SurfaceFields::{Dewpoint, Height, Pressure, Temperature},
+        SurfaceTypes::{Dewpoint, Height, Pressure, Temperature},
     },
     vec3::Vec3,
 };
 
 #[cfg(feature = "3d")]
-use super::environment::SurfaceFields::{UWind, VWind};
+use super::environment::SurfaceTypes::{UWind, VWind};
 
 /// (TODO: What it is)
 ///

@@ -10,7 +10,7 @@ use std::path::Path;
 
 use super::configuration::Config;
 
-use super::environment::{EnvFields, Environment};
+use super::environment::{FieldTypes, Environment};
 
 #[test]
 fn pressure_interpolation() {
@@ -23,7 +23,7 @@ fn pressure_interpolation() {
 
     for z in (250..=10_000).step_by(1) {
         let v = env
-            .get_field_value(x, y, z as f64, EnvFields::Pressure)
+            .get_field_value(x, y, z as f64, FieldTypes::Pressure)
             .unwrap();
 
         println!("{:>5.1} {:>5.2}",z as f64, v);

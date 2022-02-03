@@ -45,7 +45,7 @@ struct DomainExtent<T> {
 /// Enum containing fields on pressure
 /// levels that can be requested.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum EnvFields {
+pub enum FieldTypes {
     Pressure,
     VirtualTemperature,
     UWind,
@@ -90,7 +90,7 @@ impl Fields {
 /// Enum containing surface fields
 /// that can be requested.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum SurfaceFields {
+pub enum SurfaceTypes {
     Temperature,
     Dewpoint,
     Pressure,
@@ -107,28 +107,42 @@ pub enum SurfaceFields {
 /// of the model surface data is stored in the
 /// memory as 2D arrays.
 #[derive(Debug)]
-pub struct Surface {
-    temperature: Array2<Float>,
-    dewpoint: Array2<Float>,
-    pressure: Array2<Float>,
-    height: Array2<Float>,
-    u_wind: Array2<Float>,
-    v_wind: Array2<Float>,
+pub struct Surfaces {
     lons: Array2<Float>,
     lats: Array2<Float>,
+    height: Array2<Float>,
+    //
+    pressure: Array2<Float>,
+    temperature: Array2<Float>,
+    dewpoint: Array2<Float>,
+    u_wind: Array2<Float>,
+    v_wind: Array2<Float>,
+    //
+    pressure_coeffs: Array2<[Float; 16]>,
+    temperature_coeffs: Array2<[Float; 16]>,
+    dewpoint_coeffs: Array2<[Float; 16]>,
+    u_wind_coeffs: Array2<[Float; 16]>,
+    v_wind_coeffs: Array2<[Float; 16]>,
 }
 
-impl Surface {
+impl Surfaces {
     fn new_empty() -> Self {
-        Surface {
-            temperature: Array2::default((0, 0)),
-            dewpoint: Array2::default((0, 0)),
-            pressure: Array2::default((0, 0)),
-            height: Array2::default((0, 0)),
-            u_wind: Array2::default((0, 0)),
-            v_wind: Array2::default((0, 0)),
+        Surfaces {
             lons: Array2::default((0, 0)),
             lats: Array2::default((0, 0)),
+            height: Array2::default((0, 0)),
+            //
+            pressure: Array2::default((0, 0)),
+            temperature: Array2::default((0, 0)),
+            dewpoint: Array2::default((0, 0)),
+            u_wind: Array2::default((0, 0)),
+            v_wind: Array2::default((0, 0)),
+            //
+            pressure_coeffs: Array2::default((0, 0)),
+            temperature_coeffs: Array2::default((0, 0)),
+            dewpoint_coeffs: Array2::default((0, 0)),
+            u_wind_coeffs: Array2::default((0, 0)),
+            v_wind_coeffs: Array2::default((0, 0)),
         }
     }
 }
@@ -142,7 +156,7 @@ impl Surface {
 #[derive(Debug)]
 pub struct Environment {
     fields: Fields,
-    surface: Surface,
+    surfaces: Surfaces,
     pub projection: LambertConicConformal,
 }
 
@@ -154,7 +168,7 @@ impl Environment {
         debug!("Creating new enviroment");
 
         let fields = Fields::new_empty();
-        let surface = Surface::new_empty();
+        let surface = Surfaces::new_empty();
 
         let projection = generate_domain_projection(&config.domain)?;
 
@@ -162,7 +176,7 @@ impl Environment {
 
         let mut new_env = Environment {
             fields,
-            surface,
+            surfaces: surface,
             projection,
         };
 
@@ -170,7 +184,7 @@ impl Environment {
         let surface_data = buffer::collect_surfaces(&config.input)?;
 
         new_env.buffer_fields(&config.input, &level_data, domain_edges)?;
-        new_env.buffer_surface(&config.input, &surface_data, domain_edges)?;
+        new_env.buffer_surfaces(&config.input, &surface_data, domain_edges)?;
 
         Ok(new_env)
     }
@@ -235,7 +249,10 @@ fn approx_central_lon(lon_0: Float, lat_0: Float, distance: Float) -> Float {
 }
 
 /// Function to get a lat-lon extent of domain with margins.
-fn compute_domain_edges(config: &Config, projection: &LambertConicConformal) -> Result<DomainExtent<usize>, InputError> {
+fn compute_domain_edges(
+    config: &Config,
+    projection: &LambertConicConformal,
+) -> Result<DomainExtent<usize>, InputError> {
     let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (

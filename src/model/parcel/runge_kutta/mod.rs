@@ -27,7 +27,7 @@ use super::{ParcelState, Vec3};
 use floccus::constants::G;
 use schemes::{AdiabaticScheme, PseudoAdiabaticScheme};
 use crate::errors::ParcelSimulationError;
-use crate::model::environment::EnvFields::{UWind, VWind, VirtualTemperature};
+use crate::model::environment::FieldTypes::{UWind, VWind, VirtualTemperature};
 use crate::{model::environment::Environment, Float};
 use chrono::Duration;
 use log::debug;

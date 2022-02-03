@@ -21,7 +21,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! buffering data from GRIB input.
 
 mod fields;
-mod surface;
+mod surfaces;
 
 use eccodes::{CodesHandle, FallibleIterator, KeyType::Str, KeyedMessage, ProductKind::GRIB};
 

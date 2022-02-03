@@ -31,7 +31,7 @@ use crate::{
     Float,
 };
 
-use super::{bisection, EnvFields, Environment, SurfaceFields};
+use super::{bisection, FieldTypes, Environment, SurfaceTypes};
 
 impl Environment {
     /// Function to get interpolated value of given
@@ -40,17 +40,17 @@ impl Environment {
         &self,
         x: Float,
         y: Float,
-        field: SurfaceFields,
+        field: SurfaceTypes,
     ) -> Result<Float, EnvironmentError> {
         let (lon, lat) = self.projection.inverse_project(x, y);
 
         let west_lon_index = bisection::find_left_closest(
-            self.surface.lons.slice(s![.., 0]).as_slice().unwrap(),
+            self.surfaces.lons.slice(s![.., 0]).as_slice().unwrap(),
             &lon,
         )?;
 
         let south_lat_index = bisection::find_left_closest(
-            self.surface
+            self.surfaces
                 .lats
                 .slice(s![west_lon_index, ..])
                 .as_slice()
@@ -59,14 +59,14 @@ impl Environment {
         )?;
 
         let field = match field {
-            SurfaceFields::Temperature => self.surface.temperature.view(),
-            SurfaceFields::Dewpoint => self.surface.dewpoint.view(),
-            SurfaceFields::Pressure => self.surface.pressure.view(),
-            SurfaceFields::Height => self.surface.height.view(),
+            SurfaceTypes::Temperature => self.surfaces.temperature.view(),
+            SurfaceTypes::Dewpoint => self.surfaces.dewpoint.view(),
+            SurfaceTypes::Pressure => self.surfaces.pressure.view(),
+            SurfaceTypes::Height => self.surfaces.height.view(),
             #[cfg(feature = "3d")]
-            SurfaceFields::UWind => self.surface.u_wind.view(),
+            SurfaceTypes::UWind => self.surface.u_wind.view(),
             #[cfg(feature = "3d")]
-            SurfaceFields::VWind => self.surface.v_wind.view(),
+            SurfaceTypes::VWind => self.surface.v_wind.view(),
         };
 
         let horizontal_points = [
@@ -104,7 +104,7 @@ impl Environment {
         x: Float,
         y: Float,
         z: Float,
-        field: EnvFields,
+        field: FieldTypes,
     ) -> Result<Float, EnvironmentError> {
         let (lon, lat) = self.projection.inverse_project(x, y);
 
@@ -123,10 +123,10 @@ impl Environment {
         )?;
 
         let field = match field {
-            EnvFields::Pressure => self.fields.pressure.view(),
-            EnvFields::VirtualTemperature => self.fields.virtual_temp.view(),
-            EnvFields::UWind => self.fields.u_wind.view(),
-            EnvFields::VWind => self.fields.v_wind.view(),
+            FieldTypes::Pressure => self.fields.pressure.view(),
+            FieldTypes::VirtualTemperature => self.fields.virtual_temp.view(),
+            FieldTypes::UWind => self.fields.u_wind.view(),
+            FieldTypes::VWind => self.fields.v_wind.view(),
         };
 
         let horizontal_points = [

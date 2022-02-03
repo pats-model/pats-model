@@ -23,7 +23,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 use super::ParcelState;
 use crate::errors::ParcelSimulationError;
-use crate::model::environment::EnvFields::Pressure;
+use crate::model::environment::FieldTypes::Pressure;
 use crate::{model::environment::Environment, Float};
 use floccus::{
     constants::{C_P, C_PV, C_V, C_VV, EPSILON, L_V, R_D},
