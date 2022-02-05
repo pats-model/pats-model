@@ -66,7 +66,7 @@ pub struct Fields {
 }
 
 impl Fields {
-    pub fn new(input: &Input, domain_edges: DomainExtent<usize>) -> Fields {}
+    pub fn new(input: &Input, domain_edges: DomainExtent<usize>) -> Result<Fields, InputError> {}
 }
 
 /// (TODO: What it is)
@@ -180,8 +180,8 @@ fn obtain_raw_fields(
     let v_wind = read_raw_field("v", input_shape, data)?;
     let v_wind = truncate_field_to_extent(&v_wind, domain_edges);
 
-    //specific humidity needs a check for negative values
-    //which are replaced with the smallest positive value
+    // specific humidity needs a check for negative values
+    // which are replaced with the smallest positive value
     let specific_humidity = read_raw_field("q", input_shape, data)?;
     let specific_humidity = truncate_field_to_extent(&specific_humidity, domain_edges).mapv(|v| {
         if v <= 0.0 {
@@ -367,7 +367,7 @@ fn truncate_field_to_extent(
     raw_field: &Array3<Float>,
     domain_edges: DomainExtent<usize>,
 ) -> Array3<Float> {
-    //truncate in NS axis
+    // truncate in NS axis
     let truncated_field = raw_field.slice(s![.., .., domain_edges.north..=domain_edges.south]);
 
     if domain_edges.west < domain_edges.east {

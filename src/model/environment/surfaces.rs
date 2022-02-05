@@ -20,13 +20,9 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Sub-module responsible for handling
 //! surface data buffering.
 
-use crate::model::configuration;
 use crate::{
     errors::{EnvironmentError, InputError},
-    model::{
-        configuration::Input,
-        environment::{DomainExtent, Environment},
-    },
+    model::{configuration::Input, environment::DomainExtent, LonLat},
     Float,
 };
 use eccodes::{CodesHandle, FallibleIterator, ProductKind::GRIB};
@@ -36,17 +32,13 @@ use eccodes::{
 };
 use floccus::constants::G;
 use log::debug;
-use ndarray::{concatenate, s, stack, Array, Array2, Axis};
+use ndarray::{concatenate, s, stack, Array, Array2, Axis, Zip};
 
-#[derive(Debug)]
-struct RawSurfaces {
-    height: Array2<Float>,
-    pressure: Array2<Float>,
-    temperature: Array2<Float>,
-    dewpoint: Array2<Float>,
-    u_wind: Array2<Float>,
-    v_wind: Array2<Float>,
-}
+use super::{
+    finite_difference,
+    interpolation::{self, Point2D},
+    projection::LambertConicConformal,
+};
 
 /// Struct for storing environmental variables at/near surface.
 ///
@@ -57,14 +49,6 @@ struct RawSurfaces {
 pub struct Surfaces {
     lons: Array2<Float>,
     lats: Array2<Float>,
-    //
-    height: Array2<Float>,
-    pressure: Array2<Float>,
-    temperature: Array2<Float>,
-    dewpoint: Array2<Float>,
-    u_wind: Array2<Float>,
-    v_wind: Array2<Float>,
-    //
     height_coeffs: Array2<[Float; 16]>,
     pressure_coeffs: Array2<[Float; 16]>,
     temperature_coeffs: Array2<[Float; 16]>,
@@ -73,16 +57,36 @@ pub struct Surfaces {
     v_wind_coeffs: Array2<[Float; 16]>,
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+#[derive(Debug)]
+struct RawSurfaces {
+    height: Array2<Float>,
+    pressure: Array2<Float>,
+    temperature: Array2<Float>,
+    dewpoint: Array2<Float>,
+    u_wind: Array2<Float>,
+    v_wind: Array2<Float>,
+}
+
 impl Surfaces {
-    pub fn new(input: &Input, domain_edges: DomainExtent<usize>) -> Surfaces {}
+    pub fn new(
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
+        proj: &LambertConicConformal,
+    ) -> Result<Surfaces, EnvironmentError> {
+        let data = collect_data(input)?;
+        let surfaces = construct(input, &data, domain_edges, proj)?;
+
+        Ok(surfaces)
+    }
 }
 
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-fn collect(
-    input: &configuration::Input,
-) -> Result<Vec<KeyedMessage>, InputError> {
+fn collect_data(input: &Input) -> Result<Vec<KeyedMessage>, InputError> {
     let mut data_levels: Vec<KeyedMessage> = vec![];
 
     for file in &input.data_files {
@@ -114,32 +118,33 @@ fn collect(
     Ok(data_levels)
 }
 
-/// Function to read surface data from GRIB input
-/// in extent covering domain and margins and buffer it.
+/// (TODO: What it is)
 ///
-/// Data from GRIB files can only be read in a whole
-/// GRIB domain, therefore it needs to be truncated.
-///
-/// Some useful surface variables are not provided by
-/// most NWP models, therefore they need to be computed.
-fn buffer(
-    mut env: Environment,
+/// (Why it is neccessary)
+fn construct(
     input: &Input,
     data: &[KeyedMessage],
     domain_edges: DomainExtent<usize>,
-) -> Result<Environment, EnvironmentError> {
+    proj: &LambertConicConformal,
+) -> Result<Surfaces, EnvironmentError> {
     debug!("Buffering surfaces");
 
+    // need a margin of one for derivate and coefficients computation later on
+    let domain_edges = DomainExtent::<usize> {
+        north: domain_edges.north - 1,
+        south: domain_edges.south + 1,
+        east: domain_edges.east + 1,
+        west: domain_edges.west - 1,
+    };
+
     let (lons, lats) = obtain_lonlat_surface_coords(&input.distinct_lonlats, domain_edges);
-    env.surfaces.lons = lons;
-    env.surfaces.lats = lats;
-
     let raw_surfaces = obtain_raw_surfaces(input, data, domain_edges)?;
+    let surfaces = compute_surfaces_data(raw_surfaces, (lons, lats), proj);
 
-    Ok(env)
+    Ok(surfaces)
 }
 
-/// Buffers longitudes and latitudes of surface data gridpoints.
+/// Obtains longitudes and latitudes of surface data gridpoints.
 fn obtain_lonlat_surface_coords(
     distinct_lonlats: &(Vec<Float>, Vec<Float>),
     domain_edges: DomainExtent<usize>,
@@ -252,7 +257,7 @@ fn read_raw_surface(
 /// Truncates surface data array from GRIB file to
 /// cover only the domain + margins extent.
 fn truncate_surface(raw_field: &Array2<Float>, domain_edges: DomainExtent<usize>) -> Array2<Float> {
-    //truncate in NS axis
+    // truncate in NS axis
     let truncated_field = raw_field.slice(s![.., domain_edges.north..=domain_edges.south]);
 
     if domain_edges.west < domain_edges.east {
@@ -266,8 +271,113 @@ fn truncate_surface(raw_field: &Array2<Float>, domain_edges: DomainExtent<usize>
     truncated_field.to_owned()
 }
 
-impl Environment {
-    fn compute_assign_coeffs(&mut self, raw_surfaces: RawSurfaces) -> Array2<[Float; 16]> {
-        Array2::default((0, 0))
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn compute_surfaces_data(
+    raw_surfaces: RawSurfaces,
+    coords: LonLat<Array2<Float>>,
+    proj: &LambertConicConformal,
+) -> Surfaces {
+    let coords_xy = project_lonlats(&coords.0, &coords.1, proj);
+
+    // compute derivatives
+    let height_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.height,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    let pressure_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.pressure,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    let temperature_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.temperature,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    let dewpoint_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.dewpoint,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    let u_wind_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.u_wind,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    let v_wind_data_points = finite_difference::compute_points_with_derivatives(
+        raw_surfaces.v_wind,
+        coords_xy.0,
+        coords_xy.1,
+    );
+
+    // compute coefficients
+    let height_coeffs = compute_surface_coeffs(height_data_points);
+    let pressure_coeffs = compute_surface_coeffs(pressure_data_points);
+    let temperature_coeffs = compute_surface_coeffs(temperature_data_points);
+    let dewpoint_coeffs = compute_surface_coeffs(dewpoint_data_points);
+    let u_wind_coeffs = compute_surface_coeffs(u_wind_data_points);
+    let v_wind_coeffs = compute_surface_coeffs(v_wind_data_points);
+
+    // save coefficients to struct
+
+    Surfaces {
+        lons: coords.0.slice(s![1..-1, 1..-1]).to_owned(),
+        lats: coords.1.slice(s![1..-1, 1..-1]).to_owned(),
+        height_coeffs,
+        pressure_coeffs,
+        temperature_coeffs,
+        dewpoint_coeffs,
+        u_wind_coeffs,
+        v_wind_coeffs,
     }
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn project_lonlats(
+    lons: &Array2<Float>,
+    lats: &Array2<Float>,
+    proj: &LambertConicConformal,
+) -> (Array2<Float>, Array2<Float>) {
+    let mut x = Array2::default(lons.raw_dim());
+    let mut y = Array2::default(lons.raw_dim());
+
+    Zip::from(&mut x)
+        .and(&mut y)
+        .and(lons)
+        .and(lats)
+        .for_each(|x, y, &lon, &lat| {
+            let projected_xy = proj.project(lon, lat);
+            *x = projected_xy.0;
+            *y = projected_xy.1;
+        });
+
+    (x, y)
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn compute_surface_coeffs(points: Array2<Point2D>) -> Array2<[Float; 16]> {
+    let mut coeffs = Array2::default((points.dim().0 - 1, points.dim().1 - 1));
+
+    Zip::from(&mut coeffs)
+        .and(&points.slice(s![0..-1, 0..-1]))
+        .and(&points.slice(s![1.., 0..-1]))
+        .and(&points.slice(s![0..-1, 1..]))
+        .and(&points.slice(s![1.., 1..]))
+        .for_each(|coeffs, &p1, &p2, &p3, &p4| {
+            *coeffs = interpolation::precompute_bicubic_coefficients([p1, p2, p3, p4]);
+        });
+
+    coeffs
 }

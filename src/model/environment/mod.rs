@@ -26,6 +26,7 @@ mod fields;
 mod interpolation;
 mod projection;
 mod surfaces;
+mod finite_difference;
 
 use super::configuration::{Config, Domain};
 use crate::constants::{NS_C_EARTH, WE_C_EARTH};
@@ -91,8 +92,9 @@ impl Environment {
         let projection = generate_domain_projection(&config.domain)?;
         let domain_edges = compute_domain_edges(config, &projection)?;
 
-        let fields = Fields::new(&config.input, domain_edges);
-        let surfaces = Surfaces::new(&config.input, domain_edges);
+        let surfaces = Surfaces::new(&config.input, domain_edges, &projection)?;
+        let fields = Fields::new(&config.input, domain_edges)?;
+        
 
         Ok(Environment {
             fields,

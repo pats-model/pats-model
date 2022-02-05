@@ -20,18 +20,28 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Module containing interpolation methods.
 
 use crate::Float;
-use nalgebra::{Matrix4, SMatrix, SVector, Vector4};
+use nalgebra::{SMatrix, SVector};
 
-type Vector8 = SVector<Float, 8>;
-type Matrix8 = SMatrix<Float, 8, 8>;
+pub type Vector16 = SVector<Float, 16>;
+type Matrix16 = SMatrix<Float, 16, 16>;
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
 pub struct Point2D {
+    pub value: Float,
+
     pub x: Float,
     pub y: Float,
-    pub value: Float,
+    pub dx: Float,
+    pub dy: Float,
+    pub dxdy: Float,
 }
 
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]
 pub struct Point3D {
     pub x: Float,
@@ -40,187 +50,102 @@ pub struct Point3D {
     pub value: Float,
 }
 
-/// Function computing bilinear interpolation on 2D surface
-/// using polynomial fit from 4 given points and
-/// coordinates of interpolated point.
-pub fn interpolate_bilinear(x: Float, y: Float, points: [Point2D; 4]) -> Float {
-    let lhs = Matrix4::from_row_slice(&[
-        1.0,
-        points[0].x,
-        points[0].y,
-        points[0].x * points[0].y,
-        1.0,
-        points[1].x,
-        points[1].y,
-        points[1].x * points[1].y,
-        1.0,
-        points[2].x,
-        points[2].y,
-        points[2].x * points[2].y,
-        1.0,
-        points[3].x,
-        points[3].y,
-        points[3].x * points[3].y,
-    ]);
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+pub fn precompute_bicubic_coefficients(points: [Point2D; 4]) -> [Float; 16] {
+    let mut lhs = Vec::<Float>::with_capacity(256);
+    let mut rhs = Vec::<Float>::with_capacity(16);
 
-    let rhs = Vector4::from_column_slice(&[
-        points[0].value,
-        points[1].value,
-        points[2].value,
-        points[3].value,
-    ]);
+    for point in points {
+        let x = point.x;
+        let y = point.y;
+
+        lhs.append(&mut vec![
+            1.0,
+            y,
+            y * y,
+            y * y * y,
+            x,
+            x * y,
+            x * y * y,
+            x * y * y * y,
+            x * x,
+            x * x * y,
+            x * x * y * y,
+            x * x * y * y * y,
+            x * x * x,
+            x * x * x * y,
+            x * x * x * y * y,
+            x * x * x * y * y * y,
+        ]);
+        lhs.append(&mut vec![
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            y,
+            y * y,
+            y * y * y,
+            2.0 * x,
+            2.0 * x * y,
+            2.0 * x * y * y,
+            2.0 * x * y * y * y,
+            3.0 * x * x,
+            3.0 * x * x * y,
+            3.0 * x * x * y * y,
+            3.0 * x * x * y * y * y,
+        ]);
+        lhs.append(&mut vec![
+            0.0,
+            1.0,
+            2.0 * y,
+            3.0 * y * y,
+            0.0,
+            x,
+            2.0 * x * y,
+            3.0 * x * y * y,
+            0.0,
+            x * x,
+            2.0 * x * x * y,
+            3.0 * x * x * y * y,
+            0.0,
+            x * x * x,
+            2.0 * x * x * x * y,
+            3.0 * x * x * x * y * y,
+        ]);
+        lhs.append(&mut vec![
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            2.0 * y,
+            3.0 * y * y,
+            0.0,
+            2.0 * x,
+            4.0 * x * y,
+            6.0 * x * y * y,
+            0.0,
+            3.0 * x * x,
+            6.0 * x * x * y,
+            9.0 * x * x * y * y,
+        ]);
+
+        rhs.push(point.value);
+        rhs.push(point.dx);
+        rhs.push(point.dy);
+        rhs.push(point.dxdy);
+    }
+
+    let lhs = Matrix16::from_row_slice(&lhs);
+
+    let rhs = Vector16::from_vec(rhs);
 
     let lhs = lhs.try_inverse().unwrap();
     let coeffs = lhs * rhs;
 
-    coeffs[0] + coeffs[1] * x + coeffs[2] * y + coeffs[3] * x * y
-}
-
-/// Function computing bilinear interpolation in 3D field
-/// using polynomial fit from 8 given points and
-/// coordinates of interpolated point.
-pub fn interpolate_tilinear(x: Float, y: Float, z: Float, points: [Point3D; 8]) -> Float {
-    let lhs = Matrix8::from_row_slice(&[
-        1.0,
-        points[0].x,
-        points[0].y,
-        points[0].z,
-        points[0].x * points[0].y,
-        points[0].x * points[0].z,
-        points[0].y * points[0].z,
-        points[0].x * points[0].y * points[0].z,
-        1.0,
-        points[1].x,
-        points[1].y,
-        points[1].z,
-        points[1].x * points[1].y,
-        points[1].x * points[1].z,
-        points[1].y * points[1].z,
-        points[1].x * points[1].y * points[1].z,
-        1.0,
-        points[2].x,
-        points[2].y,
-        points[2].z,
-        points[2].x * points[2].y,
-        points[2].x * points[2].z,
-        points[2].y * points[2].z,
-        points[2].x * points[2].y * points[2].z,
-        1.0,
-        points[3].x,
-        points[3].y,
-        points[3].z,
-        points[3].x * points[3].y,
-        points[3].x * points[3].z,
-        points[3].y * points[3].z,
-        points[3].x * points[3].y * points[3].z,
-        1.0,
-        points[4].x,
-        points[4].y,
-        points[4].z,
-        points[4].x * points[4].y,
-        points[4].x * points[4].z,
-        points[4].y * points[4].z,
-        points[4].x * points[4].y * points[4].z,
-        1.0,
-        points[5].x,
-        points[5].y,
-        points[5].z,
-        points[5].x * points[5].y,
-        points[5].x * points[5].z,
-        points[5].y * points[5].z,
-        points[5].x * points[5].y * points[5].z,
-        1.0,
-        points[6].x,
-        points[6].y,
-        points[6].z,
-        points[6].x * points[6].y,
-        points[6].x * points[6].z,
-        points[6].y * points[6].z,
-        points[6].x * points[6].y * points[6].z,
-        1.0,
-        points[7].x,
-        points[7].y,
-        points[7].z,
-        points[7].x * points[7].y,
-        points[7].x * points[7].z,
-        points[7].y * points[7].z,
-        points[7].x * points[7].y * points[7].z,
-    ]);
-
-    let rhs = Vector8::from_column_slice(&[
-        points[0].value,
-        points[1].value,
-        points[2].value,
-        points[3].value,
-        points[4].value,
-        points[5].value,
-        points[6].value,
-        points[7].value,
-    ]);
-
-    let lhs = lhs.try_inverse().unwrap();
-    let coeffs = lhs * rhs;
-
-    coeffs[0]
-        + coeffs[1] * x
-        + coeffs[2] * y
-        + coeffs[3] * z
-        + coeffs[4] * x * y
-        + coeffs[5] * x * z
-        + coeffs[6] * y * z
-        + coeffs[7] * x * y * z
-}
-
-#[cfg(test)]
-mod tests {
-    use float_cmp::assert_approx_eq;
-
-    use crate::Float;
-
-    use super::{interpolate_bilinear, interpolate_tilinear, Point2D, Point3D};
-
-    #[test]
-    fn bilinear() {
-        let mut points = vec![];
-
-        for x in 0..=1 {
-            for y in 0..=1 {
-                let point = Point2D {
-                    x: x as Float,
-                    y: y as Float,
-                    value: (2 * x + y + 1) as Float,
-                };
-
-                points.push(point);
-            }
-        }
-
-        let r = interpolate_bilinear(0.5, 0.5, points.try_into().unwrap());
-
-        assert_approx_eq!(Float, r, 2.5);
-    }
-
-    #[test]
-    fn trilinear() {
-        let mut points = vec![];
-
-        for x in 0..=1 {
-            for y in 0..=1 {
-                for z in 0..=1 {
-                    let point = Point3D {
-                        x: x as Float,
-                        y: y as Float,
-                        z: z as Float,
-                        value: (4 * x + 2 * y + z + 1) as Float,
-                    };
-
-                    points.push(point);
-                }
-            }
-        }
-
-        let r = interpolate_tilinear(0.5, 0.5, 0.5, points.try_into().unwrap());
-
-        assert_approx_eq!(Float, r, 4.5);
-    }
+    coeffs.try_into().unwrap()
 }
