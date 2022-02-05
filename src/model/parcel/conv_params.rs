@@ -177,7 +177,7 @@ impl ConvectiveParams {
         // compute CIN if LFC is present
         let mut cin: Float = 0.0;
         if self.lfc.is_some() {
-            //we start from the 2nd point of parcel log to not go out of bounds
+            // we start from the 2nd point of parcel log to not go out of bounds
             for i in 1..parcel_log.len() {
                 let point = parcel_log[i];
 

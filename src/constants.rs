@@ -22,25 +22,25 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 use crate::Float;
 use std::f64::consts::PI;
 
-///WGS84 ellipsoid semi-major axis
+/// WGS84 ellipsoid semi-major axis
 pub const WGS84_A: Float = 6_378_137.0;
 
-///WGS84 ellipsoid semi-minor axis
+/// WGS84 ellipsoid semi-minor axis
 #[allow(clippy::excessive_precision)]
 pub const WGS84_B: Float = 6_356_752.314_245;
 
-///WGS84 ellipsoid eccentricity
+/// WGS84 ellipsoid eccentricity
 #[allow(clippy::excessive_precision)]
 pub const WGS84_E: Float =
     0.081_819_190_842_965_558_441_157_725_155_790_103_599_429_130_554_199_218_75;
 
-///WGS84 ellipsoid Ramanujan's `h` parameter
+/// WGS84 ellipsoid Ramanujan's `h` parameter
 pub const WGS84_H: Float =
     ((WGS84_A - WGS84_B) * (WGS84_A - WGS84_B)) / ((WGS84_A + WGS84_B) * (WGS84_A - WGS84_B));
 
-///WGS84 ellipsoid circumference along meridian
+/// WGS84 ellipsoid circumference along meridian
 ///
-///Computed with first 6 terms of infinite series:
+/// Computed with first 6 terms of infinite series:
 ///`C = \pi(a+b)\sum_{n=0}^{+\infty}\binom{0.5}{n}h^n`
 pub const NS_C_EARTH: Float = PI
     * (WGS84_A + WGS84_B)
@@ -51,5 +51,5 @@ pub const NS_C_EARTH: Float = PI
         + (25.0 / 16384.0) * (WGS84_H * WGS84_H * WGS84_H * WGS84_H)
         + (49.0 / 65536.0) * (WGS84_H * WGS84_H * WGS84_H * WGS84_H * WGS84_H));
 
-///WGS84 ellipsoid circumference along equator
+/// WGS84 ellipsoid circumference along equator
 pub const WE_C_EARTH: Float = 2.0 * PI * WGS84_A;

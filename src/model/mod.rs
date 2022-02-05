@@ -115,7 +115,7 @@ pub fn main() -> Result<(), ModelError> {
     parcels_bar.finish_with_message("All parcels finished");
     info!("Writing output");
 
-    //write convective parameters to file
+    // write convective parameters to file
     save_conv_params(parcels_params)?;
 
     Ok(())
