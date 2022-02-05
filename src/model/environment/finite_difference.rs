@@ -36,19 +36,18 @@ pub fn compute_points_with_derivatives(
     // this finite-difference computation uses average of deltaX, deltaY
     // on both sides on the stencil
     // y coordinates are against the matrix direction (making things even wierder)
-    let dx = &surface.slice(s![2.., 1..-1])
-        - &surface.slice(s![0..-2, 1..-1])
-            / (&x.slice(s![2.., 1..-1]) - &x.slice(s![0..-2, 1..-1]));
+    let dx = (&surface.slice(s![2.., 1..-1]) - &surface.slice(s![0..-2, 1..-1]))
+        / (&x.slice(s![2.., 1..-1]) - &x.slice(s![0..-2, 1..-1]));
 
-    let dy = &surface.slice(s![1..-1, 0..-2])
-        - &surface.slice(s![1..-1, 2..]) / (&y.slice(s![1..-1, 0..-2]) - &y.slice(s![1..-1, 2..]));
+    let dy = (&surface.slice(s![1..-1, 0..-2]) - &surface.slice(s![1..-1, 2..]))
+        / (&y.slice(s![1..-1, 0..-2]) - &y.slice(s![1..-1, 2..]));
 
-    let dxdy = &surface.slice(s![2.., 0..-2])
+    let dxdy = (&surface.slice(s![2.., 0..-2])
         - &surface.slice(s![2.., 2..])
         - &surface.slice(s![0..-2, 0..-2])
-        + &surface.slice(s![0..-2, 2..])
-            / ((&x.slice(s![2.., 1..-1]) - &x.slice(s![0..-2, 1..-1]))
-                * (&y.slice(s![1..-1, 0..-2]) - &y.slice(s![1..-1, 2..])));
+        + &surface.slice(s![0..-2, 2..]))
+        / ((&x.slice(s![2.., 1..-1]) - &x.slice(s![0..-2, 1..-1]))
+            * (&y.slice(s![1..-1, 0..-2]) - &y.slice(s![1..-1, 2..])));
 
     let mut points: Array2<Point2D> = Array2::default(dxdy.raw_dim());
 
