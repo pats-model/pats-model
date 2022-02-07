@@ -20,6 +20,11 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Sub-module responsible for handling
 //! surface data buffering.
 
+use super::{
+    finite_difference,
+    interpolation::{self, Point2D},
+    projection::LambertConicConformal,
+};
 use crate::{
     errors::{EnvironmentError, InputError},
     model::{configuration::Input, environment::DomainExtent, LonLat},
@@ -33,12 +38,6 @@ use eccodes::{
 use floccus::constants::G;
 use log::debug;
 use ndarray::{concatenate, s, stack, Array, Array2, Axis, Zip};
-
-use super::{
-    finite_difference,
-    interpolation::{self, Point2D},
-    projection::LambertConicConformal,
-};
 
 /// Struct for storing environmental variables at/near surface.
 ///
@@ -279,7 +278,7 @@ fn compute_surfaces_data(
     coords: LonLat<Array2<Float>>,
     proj: &LambertConicConformal,
 ) -> Surfaces {
-    let coords_xy = project_lonlats(&coords.0, &coords.1, proj);
+    let coords_xy = project_lonlats(&coords, proj);
 
     // compute derivatives
     let height_data_points = finite_difference::compute_points_with_derivatives(
@@ -344,17 +343,16 @@ fn compute_surfaces_data(
 ///
 /// (Why it is neccessary)
 fn project_lonlats(
-    lons: &Array2<Float>,
-    lats: &Array2<Float>,
+    lonlats: &LonLat<Array2<Float>>,
     proj: &LambertConicConformal,
 ) -> (Array2<Float>, Array2<Float>) {
-    let mut x = Array2::default(lons.raw_dim());
-    let mut y = Array2::default(lons.raw_dim());
+    let mut x = Array2::default(lonlats.0.raw_dim());
+    let mut y = Array2::default(lonlats.1.raw_dim());
 
     Zip::from(&mut x)
         .and(&mut y)
-        .and(lons)
-        .and(lats)
+        .and(&lonlats.0)
+        .and(&lonlats.1)
         .for_each(|x, y, &lon, &lat| {
             let projected_xy = proj.project(lon, lat);
             *x = projected_xy.0;
