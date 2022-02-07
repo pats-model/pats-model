@@ -93,7 +93,7 @@ impl Environment {
         let domain_edges = compute_domain_edges(config, &projection)?;
 
         let surfaces = Surfaces::new(&config.input, domain_edges, &projection)?;
-        let fields = Fields::new(&config.input, domain_edges)?;
+        let fields = Fields::new(&config.input, domain_edges, &projection)?;
         
 
         Ok(Environment {

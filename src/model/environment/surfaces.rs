@@ -163,11 +163,8 @@ fn obtain_lonlat_surface_coords(
     let lons = Array::from_vec(lons);
     let lats = Array::from_vec(lats);
 
-    let lons_view = vec![lons.view(); lats.len()];
-    let lats_view = vec![lats.view(); lons.len()];
-
-    let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
-    let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
+    let lons = stack(Axis(1), vec![lons.view(); lats.len()].as_slice()).unwrap();
+    let lats = stack(Axis(0), vec![lats.view(); lons.len()].as_slice()).unwrap();
 
     (lons, lats)
 }
@@ -281,37 +278,37 @@ fn compute_surfaces_data(
     let coords_xy = project_lonlats(&coords, proj);
 
     // compute derivatives
-    let height_data_points = finite_difference::compute_points_with_derivatives(
+    let height_data_points = finite_difference::compute_2d_points(
         raw_surfaces.height,
         coords_xy.0,
         coords_xy.1,
     );
 
-    let pressure_data_points = finite_difference::compute_points_with_derivatives(
+    let pressure_data_points = finite_difference::compute_2d_points(
         raw_surfaces.pressure,
         coords_xy.0,
         coords_xy.1,
     );
 
-    let temperature_data_points = finite_difference::compute_points_with_derivatives(
+    let temperature_data_points = finite_difference::compute_2d_points(
         raw_surfaces.temperature,
         coords_xy.0,
         coords_xy.1,
     );
 
-    let dewpoint_data_points = finite_difference::compute_points_with_derivatives(
+    let dewpoint_data_points = finite_difference::compute_2d_points(
         raw_surfaces.dewpoint,
         coords_xy.0,
         coords_xy.1,
     );
 
-    let u_wind_data_points = finite_difference::compute_points_with_derivatives(
+    let u_wind_data_points = finite_difference::compute_2d_points(
         raw_surfaces.u_wind,
         coords_xy.0,
         coords_xy.1,
     );
 
-    let v_wind_data_points = finite_difference::compute_points_with_derivatives(
+    let v_wind_data_points = finite_difference::compute_2d_points(
         raw_surfaces.v_wind,
         coords_xy.0,
         coords_xy.1,

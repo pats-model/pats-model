@@ -21,14 +21,14 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-use super::interpolation::Point2D;
+use super::interpolation::{Point2D, Point3D};
 use crate::Float;
-use ndarray::{s, Array2, Zip};
+use ndarray::{s, Array2, Zip, Array3};
 
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-pub fn compute_points_with_derivatives(
+pub fn compute_2d_points(
     surface: Array2<Float>,
     x: Array2<Float>,
     y: Array2<Float>,
@@ -72,4 +72,17 @@ pub fn compute_points_with_derivatives(
         });
 
     points
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+pub fn compute_3d_points(
+    field: Array3<Float>,
+    x: Array3<Float>,
+    y: Array3<Float>,
+) -> Array3<Point3D> {
+    // this finite-difference computation uses average of deltaX, deltaY, deltaZ
+    // on both sides on the stencil
+    // y coordinates are against the matrix direction (making things even wierder)
 }

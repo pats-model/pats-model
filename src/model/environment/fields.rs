@@ -19,7 +19,8 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 //! Sub-module responsible for handling
 //! pressure level data buffering.
-use crate::model::configuration;
+use super::projection::LambertConicConformal;
+use crate::model::{configuration, LonLat};
 use crate::{
     errors::{EnvironmentError, InputError},
     model::{configuration::Input, environment::DomainExtent},
@@ -66,13 +67,22 @@ pub struct Fields {
 }
 
 impl Fields {
-    pub fn new(input: &Input, domain_edges: DomainExtent<usize>) -> Result<Fields, InputError> {}
+    pub fn new(
+        input: &Input,
+        domain_edges: DomainExtent<usize>,
+        proj: &LambertConicConformal,
+    ) -> Result<Fields, EnvironmentError> {
+        let data = collect_data(input)?;
+        let surfaces = construct(input, &data, domain_edges, proj)?;
+
+        Ok(surfaces)
+    }
 }
 
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-fn collect(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError> {
+fn collect_data(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError> {
     let mut data_levels: Vec<KeyedMessage> = vec![];
 
     for file in &input.data_files {
@@ -103,27 +113,28 @@ fn collect(input: &configuration::Input) -> Result<Vec<KeyedMessage>, InputError
     Ok(data_levels)
 }
 
-/// Function to read pressure level data from GRIB input
-/// in extent covering domain and margins and buffer it.
+/// (TODO: What it is)
 ///
-/// Data from GRIB files can only be read in a whole
-/// GRIB domain, therefore it needs to be truncated.
-///
-/// Some useful variables are not provided by
-/// most NWP models, therefore they need to be computed.
-fn buffer(
-    mut fields: Fields,
+/// (Why it is neccessary)
+fn construct(
     input: &Input,
     data: &[KeyedMessage],
     domain_edges: DomainExtent<usize>,
+    proj: &LambertConicConformal,
 ) -> Result<Fields, EnvironmentError> {
     debug!("Buffering fields");
 
-    let (lons, lats) = obtain_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
-    fields.lons = lons;
-    fields.lats = lats;
+    // need a margin of one for derivate and coefficients computation later on
+    let domain_edges = DomainExtent::<usize> {
+        north: domain_edges.north - 1,
+        south: domain_edges.south + 1,
+        east: domain_edges.east + 1,
+        west: domain_edges.west - 1,
+    };
 
+    let (lons, lats) = obtain_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
     let raw_fields = obtain_raw_fields(input, domain_edges, data)?;
+    let fields = compute_fields_data(raw_fields, (lons, lats), proj);
 
     Ok(fields)
 }
@@ -148,11 +159,8 @@ fn obtain_lonlat_fields_coords(
     let lons = Array::from_vec(lons);
     let lats = Array::from_vec(lats);
 
-    let lons_view = vec![lons.view(); lats.len()];
-    let lats_view = vec![lats.view(); lons.len()];
-
-    let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
-    let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
+    let lons = stack(Axis(1), vec![lons.view(); lats.len()].as_slice()).unwrap();
+    let lats = stack(Axis(0), vec![lats.view(); lons.len()].as_slice()).unwrap();
 
     (lons, lats)
 }
@@ -400,4 +408,41 @@ fn compute_vtemp_field(
         });
 
     virtual_temperature
+}
+
+fn compute_fields_data(
+    raw_fields: RawFields,
+    coords: LonLat<Array2<Float>>,
+    proj: &LambertConicConformal,
+) -> Fields {
+    let coords_xy = project_lonlats(&coords, proj, raw_fields.geopotential.shape()[0]);
+
+    
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn project_lonlats(
+    lonlats: &LonLat<Array2<Float>>,
+    proj: &LambertConicConformal,
+    levels_count: usize,
+) -> (Array3<Float>, Array3<Float>) {
+    let mut x = Array2::default(lonlats.0.raw_dim());
+    let mut y = Array2::default(lonlats.1.raw_dim());
+
+    Zip::from(&mut x)
+        .and(&mut y)
+        .and(&lonlats.0)
+        .and(&lonlats.1)
+        .for_each(|x, y, &lon, &lat| {
+            let projected_xy = proj.project(lon, lat);
+            *x = projected_xy.0;
+            *y = projected_xy.1;
+        });
+
+    let x = ndarray::stack(Axis(0), vec![x.view(); levels_count].as_slice()).unwrap();
+    let y = ndarray::stack(Axis(0), vec![y.view(); levels_count].as_slice()).unwrap();
+
+    (x, y)
 }
