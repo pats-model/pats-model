@@ -164,7 +164,7 @@ pub fn precompute_bicubic_coefficients(points: [Point2D; 4]) -> [Float; 16] {
     coeffs.into()
 }
 
-pub fn precompute_tricubic_coefficients(points: [Point3D; 8]) -> [Float; 64] {
+pub fn precompute_tricubic_coefficients(points: &[Point3D; 8]) -> [Float; 64] {
     let mut lhs = Vec::<Float>::with_capacity(4096);
     let mut rhs = Vec::<Float>::with_capacity(64);
 
@@ -722,7 +722,7 @@ pub fn precompute_tricubic_coefficients(points: [Point3D; 8]) -> [Float; 64] {
     coeffs.into()
 }
 
-pub fn interpolate_bicubic(x: Float, y: Float, coefficients: [Float; 16]) -> Float {
+pub fn interpolate_bicubic(x: Float, y: Float, coefficients: &[Float; 16]) -> Float {
     let mut result = 0.0;
 
     for i in 0..=3 {
@@ -734,7 +734,7 @@ pub fn interpolate_bicubic(x: Float, y: Float, coefficients: [Float; 16]) -> Flo
     result
 }
 
-pub fn interpolate_tricubic(x: Float, y: Float, z: Float, coefficients: [Float; 64]) -> Float {
+pub fn interpolate_tricubic(x: Float, y: Float, z: Float, coefficients: &[Float; 64]) -> Float {
     let mut result = 0.0;
 
     for i in 0..=3 {

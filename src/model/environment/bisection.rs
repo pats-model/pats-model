@@ -29,7 +29,7 @@ use crate::errors::SearchError;
 ///
 /// Alternatively, `binary_search()` function for slice type could be used,
 /// but this function is highly customised to the model needs and there are no
-/// apparent advantages of using built-in binary_search() over custom one.
+/// apparent advantages of using built-in `binary_search()` over custom one.
 fn binary_search<T: PartialOrd>(array: &[T], x: &T) -> Result<usize, SearchError> {
     if array.is_empty() {
         return Err(SearchError::EmptyArray);

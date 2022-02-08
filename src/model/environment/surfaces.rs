@@ -138,7 +138,7 @@ fn construct(
 
     let (lons, lats) = obtain_lonlat_surface_coords(&input.distinct_lonlats, domain_edges);
     let raw_surfaces = obtain_raw_surfaces(input, data, domain_edges)?;
-    let surfaces = compute_surfaces_data(raw_surfaces, (lons, lats), proj);
+    let surfaces = compute_surfaces_data(&raw_surfaces, &(lons, lats), proj);
 
     Ok(surfaces)
 }
@@ -270,11 +270,11 @@ fn truncate_surface(raw_field: &Array2<Float>, domain_edges: DomainExtent<usize>
 ///
 /// (Why it is neccessary)
 fn compute_surfaces_data(
-    raw_surfaces: RawSurfaces,
-    coords: LonLat<Array2<Float>>,
+    raw_surfaces: &RawSurfaces,
+    coords: &LonLat<Array2<Float>>,
     proj: &LambertConicConformal,
 ) -> Surfaces {
-    let coords_xy = project_lonlats(&coords, proj);
+    let coords_xy = project_lonlats(coords, proj);
 
     // compute derivatives
     let height_data_points =
@@ -296,12 +296,12 @@ fn compute_surfaces_data(
         finite_difference::compute_2d_points(&raw_surfaces.v_wind, &coords_xy.0, &coords_xy.1);
 
     // compute coefficients
-    let height_coeffs = compute_surface_coeffs(height_data_points);
-    let pressure_coeffs = compute_surface_coeffs(pressure_data_points);
-    let temperature_coeffs = compute_surface_coeffs(temperature_data_points);
-    let dewpoint_coeffs = compute_surface_coeffs(dewpoint_data_points);
-    let u_wind_coeffs = compute_surface_coeffs(u_wind_data_points);
-    let v_wind_coeffs = compute_surface_coeffs(v_wind_data_points);
+    let height_coeffs = compute_surface_coeffs(&height_data_points);
+    let pressure_coeffs = compute_surface_coeffs(&pressure_data_points);
+    let temperature_coeffs = compute_surface_coeffs(&temperature_data_points);
+    let dewpoint_coeffs = compute_surface_coeffs(&dewpoint_data_points);
+    let u_wind_coeffs = compute_surface_coeffs(&u_wind_data_points);
+    let v_wind_coeffs = compute_surface_coeffs(&v_wind_data_points);
 
     // save coefficients to struct
 
@@ -343,7 +343,7 @@ fn project_lonlats(
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-fn compute_surface_coeffs(points: Array2<Point2D>) -> Array2<[Float; 16]> {
+fn compute_surface_coeffs(points: &Array2<Point2D>) -> Array2<[Float; 16]> {
     let mut coeffs = Array2::default((points.dim().0 - 1, points.dim().1 - 1));
 
     Zip::from(&mut coeffs)

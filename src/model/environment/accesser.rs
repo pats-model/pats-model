@@ -73,7 +73,7 @@ impl Environment {
             SurfaceTypes::VWind => self.surface.v_wind_coeffs.view(),
         };
 
-        let result_val = interpolate_bicubic(x, y, field[[west_lon_index, south_lat_index]]);
+        let result_val = interpolate_bicubic(x, y, &field[[west_lon_index, south_lat_index]]);
 
         Ok(result_val)
     }
@@ -143,7 +143,7 @@ impl Environment {
         };
 
         let result_val =
-            interpolate_tricubic(x, y, z, field[[z_index, west_lon_index, south_lat_index]]);
+            interpolate_tricubic(x, y, z, &field[[z_index, west_lon_index, south_lat_index]]);
 
         Ok(result_val)
     }

@@ -106,7 +106,7 @@ pub fn main() -> Result<(), ModelError> {
                 error!("Parcel simulation handling failed due to an error, check the details and rerun the model: {}", err);
                 // this is neccessary to make sure that all error messages
                 // are fully written to stdout before the progress bar updates
-                println!("");
+                println!();
             }
         }
         parcels_bar.inc(1);

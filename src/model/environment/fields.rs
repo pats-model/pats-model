@@ -137,7 +137,7 @@ fn construct(
 
     let (lons, lats) = obtain_lonlat_fields_coords(&input.distinct_lonlats, domain_edges);
     let raw_fields = obtain_raw_fields(input, domain_edges, data)?;
-    let fields = compute_fields_data(raw_fields, (lons, lats), proj);
+    let fields = compute_fields_data(&raw_fields, &(lons, lats), proj);
 
     Ok(fields)
 }
@@ -413,8 +413,8 @@ fn compute_vtemp_field(
 }
 
 fn compute_fields_data(
-    raw_fields: RawFields,
-    coords: LonLat<Array2<Float>>,
+    raw_fields: &RawFields,
+    coords: &LonLat<Array2<Float>>,
     proj: &LambertConicConformal,
 ) -> Fields {
     let coords_xy = project_lonlats(&coords, proj, raw_fields.height.shape()[0]);
@@ -463,12 +463,12 @@ fn compute_fields_data(
     );
 
     // compute coefficients
-    let pressure_coeffs = compute_field_coeffs(pressure_data_points);
-    let temperature_coeffs = compute_field_coeffs(temperature_data_points);
-    let spec_humidity_coeffs = compute_field_coeffs(spec_humidity_data_points);
-    let u_wind_coeffs = compute_field_coeffs(uwind_data_points);
-    let v_wind_coeffs = compute_field_coeffs(vwind_data_points);
-    let virtual_temp_coeffs = compute_field_coeffs(virtual_temp_data_points);
+    let pressure_coeffs = compute_field_coeffs(&pressure_data_points);
+    let temperature_coeffs = compute_field_coeffs(&temperature_data_points);
+    let spec_humidity_coeffs = compute_field_coeffs(&spec_humidity_data_points);
+    let u_wind_coeffs = compute_field_coeffs(&uwind_data_points);
+    let v_wind_coeffs = compute_field_coeffs(&vwind_data_points);
+    let virtual_temp_coeffs = compute_field_coeffs(&virtual_temp_data_points);
 
     Fields {
         lons: coords.0.slice(s![1..-1, 1..-1]).to_owned(),
@@ -513,7 +513,7 @@ fn project_lonlats(
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
-fn compute_field_coeffs(points: Array3<Point3D>) -> Array3<[Float; 64]> {
+fn compute_field_coeffs(points: &Array3<Point3D>) -> Array3<[Float; 64]> {
     let coeffs_shape = (points.dim().0 - 1, points.dim().1 - 1, points.dim().2 - 1);
 
     let mut points_lower: Array3<[Point3D; 4]> = Array3::default(coeffs_shape);
@@ -542,7 +542,7 @@ fn compute_field_coeffs(points: Array3<Point3D>) -> Array3<[Float; 64]> {
         .and(&points_lower)
         .and(&points_upper)
         .for_each(|coeffs, &pl, &pu| {
-            *coeffs = precompute_tricubic_coefficients([
+            *coeffs = precompute_tricubic_coefficients(&[
                 pl[0], pl[1], pl[2], pl[3], pu[0], pu[1], pu[2], pu[3],
             ]);
         });

@@ -30,7 +30,6 @@ mod surfaces;
 
 use super::configuration::{Config, Domain};
 use crate::constants::{NS_C_EARTH, WE_C_EARTH};
-use crate::errors::InputError;
 use crate::model::environment::projection::LambertConicConformal;
 use crate::{errors::EnvironmentError, Float};
 use fields::Fields;
@@ -90,7 +89,7 @@ impl Environment {
         debug!("Creating new enviroment");
 
         let projection = generate_domain_projection(&config.domain)?;
-        let domain_edges = compute_domain_edges(config, &projection)?;
+        let domain_edges = compute_domain_edges(config, &projection);
 
         let surfaces = Surfaces::new(&config.input, domain_edges, &projection)?;
         let fields = Fields::new(&config.input, domain_edges, &projection)?;
@@ -165,7 +164,7 @@ fn approx_central_lon(lon_0: Float, lat_0: Float, distance: Float) -> Float {
 fn compute_domain_edges(
     config: &Config,
     projection: &LambertConicConformal,
-) -> Result<DomainExtent<usize>, InputError> {
+) -> DomainExtent<usize> {
     let sw_xy = projection.project(config.domain.ref_lon, config.domain.ref_lat);
 
     let ne_xy = (
@@ -188,9 +187,8 @@ fn compute_domain_edges(
     );
 
     let distinct_lonlats = &config.input.distinct_lonlats;
-    let domain_edges = find_extent_edge_indices(distinct_lonlats, domain_extent);
+    find_extent_edge_indices(distinct_lonlats, domain_extent)
 
-    Ok(domain_edges)
 }
 
 /// Finds closests indices in the GRIB input files

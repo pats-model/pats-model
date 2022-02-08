@@ -27,6 +27,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! the fields inside `config.yaml` so you can check this documentation
 //! for more details how to set the config file.
 
+use super::LonLat;
 use crate::errors::{ConfigError, InputError};
 use crate::Float;
 use chrono::NaiveDateTime;
@@ -41,7 +42,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::LonLat;
+type Shape = (usize, usize);
 
 /// Fields with model domain information.
 ///
@@ -201,7 +202,7 @@ impl Input {
     /// and a grid shape of input GRIB files.
     fn read_distinct_lonlats_and_shape(
         &self,
-    ) -> Result<(LonLat<Vec<Float>>, (usize, usize)), InputError> {
+    ) -> Result<(LonLat<Vec<Float>>, Shape), InputError> {
         // We can read any message from any file as we assume that lat-lons
         // are aligned in all GRIB messages
 

@@ -12,8 +12,8 @@ use std::path::Path;
 
 #[test]
 fn pressure_interpolation() {
-    let mut cfg = Config::new_from_file(Path::new("./test-data/config.yaml")).unwrap();
-    let env = Environment::new(&mut cfg).unwrap();
+    let cfg = Config::new_from_file(Path::new("./test-data/config.yaml")).unwrap();
+    let env = Environment::new(&cfg).unwrap();
 
     let (x, y) = env
         .projection
