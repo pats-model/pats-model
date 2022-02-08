@@ -236,13 +236,12 @@ fn read_raw_surface(
         return Err(InputError::IncorrectKeyType("values"));
     };
 
-    // a bit of magic
     // data values in GRIB are a vec of values row-by-row (x-axis is in WE direction)
     // we want a Array2 of provided `shape` with x-axis in WE direction
-    // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
-    // and puts them in columns
-    // so we need to correctly split the data in GRIB vector into Array2 and then transpose
-    // that array to get axes along expected geographical directions
+    // but from_shape_vec(final_shape, data) splits the data into final_shape.0 long chunks
+    // and stacks them along Axis(0)
+    // we then transpose that array to get axes along expected geographical directions
+    // this solution is against contiguos memory convention, for historical reasons
     let result_data = Array2::from_shape_vec((shape.1, shape.0), data_level)?;
     let result_data = result_data.reversed_axes();
     let result_data = result_data.mapv(|v| v as Float);
@@ -278,41 +277,23 @@ fn compute_surfaces_data(
     let coords_xy = project_lonlats(&coords, proj);
 
     // compute derivatives
-    let height_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.height,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let height_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.height, coords_xy.0, coords_xy.1);
 
-    let pressure_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.pressure,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let pressure_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.pressure, coords_xy.0, coords_xy.1);
 
-    let temperature_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.temperature,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let temperature_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.temperature, coords_xy.0, coords_xy.1);
 
-    let dewpoint_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.dewpoint,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let dewpoint_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.dewpoint, coords_xy.0, coords_xy.1);
 
-    let u_wind_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.u_wind,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let u_wind_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.u_wind, coords_xy.0, coords_xy.1);
 
-    let v_wind_data_points = finite_difference::compute_2d_points(
-        raw_surfaces.v_wind,
-        coords_xy.0,
-        coords_xy.1,
-    );
+    let v_wind_data_points =
+        finite_difference::compute_2d_points(raw_surfaces.v_wind, coords_xy.0, coords_xy.1);
 
     // compute coefficients
     let height_coeffs = compute_surface_coeffs(height_data_points);

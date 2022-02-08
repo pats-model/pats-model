@@ -19,6 +19,8 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 
 //! Sub-module responsible for handling
 //! pressure level data buffering.
+use super::finite_difference;
+use super::interpolation::{precompute_tricubic_coeffs, Point3D};
 use super::projection::LambertConicConformal;
 use crate::model::{configuration, LonLat};
 use crate::{
@@ -38,7 +40,7 @@ use rustc_hash::FxHashSet;
 
 #[derive(Debug)]
 struct RawFields {
-    geopotential: Array3<Float>,
+    height: Array3<Float>,
     pressure: Array3<Float>,
     temperature: Array3<Float>,
     specific_humidity: Array3<Float>,
@@ -55,15 +57,16 @@ struct RawFields {
 /// memory as 3D arrays.
 #[derive(Debug)]
 pub struct Fields {
-    temperature: Array3<Float>,
-    pressure: Array3<Float>,
-    height: Array3<Float>,
-    u_wind: Array3<Float>,
-    v_wind: Array3<Float>,
-    spec_humidity: Array3<Float>,
-    virtual_temp: Array3<Float>,
     lons: Array2<Float>,
     lats: Array2<Float>,
+    height: Array3<Float>,
+
+    temperature_coeffs: Array3<[Float; 64]>,
+    pressure_coeffs: Array3<[Float; 64]>,
+    u_wind_coeffs: Array3<[Float; 64]>,
+    v_wind_coeffs: Array3<[Float; 64]>,
+    spec_humidity_coeffs: Array3<[Float; 64]>,
+    virtual_temp_coeffs: Array3<[Float; 64]>,
 }
 
 impl Fields {
@@ -177,7 +180,7 @@ fn obtain_raw_fields(
     let pressure = read_truncated_pressure(data, domain_edges)?;
 
     let geopotential = read_raw_field("z", input_shape, data)?;
-    let geopotential = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
+    let height = truncate_field_to_extent(&geopotential, domain_edges).mapv(|v| v / G);
 
     let temperature = read_raw_field("t", input_shape, data)?;
     let temperature = truncate_field_to_extent(&temperature, domain_edges);
@@ -202,7 +205,7 @@ fn obtain_raw_fields(
     let virtual_temperature = compute_vtemp_field(&temperature, &specific_humidity);
 
     Ok(RawFields {
-        geopotential,
+        height,
         pressure,
         temperature,
         specific_humidity,
@@ -339,13 +342,12 @@ fn messages_to_array(
             return Err(InputError::IncorrectKeyType("values"));
         };
 
-        // a bit of magic
         // data values in GRIB are a vec of values row-by-row (x-axis is in WE direction)
         // we want a Array2 of provided `shape` with x-axis in WE direction
-        // but from_shape_vec(final_shape, data) splits the data into final_shape.1 long chunks
-        // and puts them in columns
-        // so we need to correctly split the data in GRIB vector into Array2 and then transpose
-        // that array to get axes along expected geographical directions
+        // but from_shape_vec(final_shape, data) splits the data into final_shape.0 long chunks
+        // and stacks them along Axis(0)
+        // we then transpose that array to get axes along expected geographical directions
+        // this solution is against contiguos memory convention, for historical reasons
         let lvl_vals = Array2::from_shape_vec((shape.1, shape.0), lvl_vals)?;
         let lvl_vals = lvl_vals.reversed_axes();
 
@@ -415,9 +417,70 @@ fn compute_fields_data(
     coords: LonLat<Array2<Float>>,
     proj: &LambertConicConformal,
 ) -> Fields {
-    let coords_xy = project_lonlats(&coords, proj, raw_fields.geopotential.shape()[0]);
+    let coords_xy = project_lonlats(&coords, proj, raw_fields.height.shape()[0]);
 
-    
+    // compute derivatives
+    let pressure_data_points = finite_difference::compute_3d_points(
+        raw_fields.pressure,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    let temperature_data_points = finite_difference::compute_3d_points(
+        raw_fields.temperature,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    let spec_humidity_data_points = finite_difference::compute_3d_points(
+        raw_fields.specific_humidity,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    let uwind_data_points = finite_difference::compute_3d_points(
+        raw_fields.u_wind,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    let vwind_data_points = finite_difference::compute_3d_points(
+        raw_fields.v_wind,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    let virtual_temp_data_points = finite_difference::compute_3d_points(
+        raw_fields.virtual_temperature,
+        coords_xy.0,
+        coords_xy.1,
+        raw_fields.height,
+    );
+
+    // compute coefficients
+    let pressure_coeffs = compute_field_coeffs(pressure_data_points);
+    let temperature_coeffs = compute_field_coeffs(temperature_data_points);
+    let spec_humidity_coeffs = compute_field_coeffs(spec_humidity_data_points);
+    let u_wind_coeffs = compute_field_coeffs(uwind_data_points);
+    let v_wind_coeffs = compute_field_coeffs(vwind_data_points);
+    let virtual_temp_coeffs = compute_field_coeffs(virtual_temp_data_points);
+
+    Fields {
+        lons: coords.0.slice(s![1..-1, 1..-1]).to_owned(),
+        lats: coords.1.slice(s![1..-1, 1..-1]).to_owned(),
+        height: raw_fields.height.slice(s![.., 1..-1, 1..-1]).to_owned(),
+        temperature_coeffs,
+        pressure_coeffs,
+        u_wind_coeffs,
+        v_wind_coeffs,
+        spec_humidity_coeffs,
+        virtual_temp_coeffs,
+    }
 }
 
 /// (TODO: What it is)
@@ -445,4 +508,44 @@ fn project_lonlats(
     let y = ndarray::stack(Axis(0), vec![y.view(); levels_count].as_slice()).unwrap();
 
     (x, y)
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+fn compute_field_coeffs(points: Array3<Point3D>) -> Array3<[Float; 64]> {
+    let coeffs_shape = (points.dim().0 - 1, points.dim().1 - 1, points.dim().2 - 1);
+
+    let mut points_lower: Array3<[Point3D; 4]> = Array3::default(coeffs_shape);
+    let mut points_upper: Array3<[Point3D; 4]> = Array3::default(coeffs_shape);
+    let mut coeffs = Array3::from_elem(coeffs_shape, [0.0; 64]);
+
+    Zip::from(&mut points_lower)
+        .and(&points.slice(s![0..-1, 0..-1, 0..-1]))
+        .and(&points.slice(s![0..-1, 1.., 0..-1]))
+        .and(&points.slice(s![0..-1, 0..-1, 1..]))
+        .and(&points.slice(s![0..-1, 1.., 1..]))
+        .for_each(|points, &p1, &p2, &p3, &p4| {
+            *points = [p1, p2, p3, p4];
+        });
+
+    Zip::from(&mut points_upper)
+        .and(&points.slice(s![1.., 0..-1, 0..-1]))
+        .and(&points.slice(s![1.., 1.., 0..-1]))
+        .and(&points.slice(s![1.., 0..-1, 1..]))
+        .and(&points.slice(s![1.., 1.., 1..]))
+        .for_each(|points, &p1, &p2, &p3, &p4| {
+            *points = [p1, p2, p3, p4];
+        });
+
+    Zip::from(&mut coeffs)
+        .and(&points_lower)
+        .and(&points_upper)
+        .for_each(|coeffs, &pl, &pu| {
+            *coeffs = precompute_tricubic_coeffs([
+                pl[0], pl[1], pl[2], pl[3], pu[0], pu[1], pu[2], pu[3],
+            ]);
+        });
+
+    coeffs
 }
