@@ -29,9 +29,9 @@ use ndarray::{concatenate, s, Array2, Array3, Axis, Zip};
 ///
 /// (Why it is neccessary)
 pub fn compute_2d_points(
-    surface: Array2<Float>,
-    x: Array2<Float>,
-    y: Array2<Float>,
+    surface: &Array2<Float>,
+    x: &Array2<Float>,
+    y: &Array2<Float>,
 ) -> Array2<Point2D> {
     // this finite-difference computation uses average of deltaX, deltaY
     // on both sides on the stencil
@@ -78,10 +78,10 @@ pub fn compute_2d_points(
 ///
 /// (Why it is neccessary)
 pub fn compute_3d_points(
-    field: Array3<Float>,
-    x: Array3<Float>,
-    y: Array3<Float>,
-    z: Array3<Float>,
+    field: &Array3<Float>,
+    x: &Array3<Float>,
+    y: &Array3<Float>,
+    z: &Array3<Float>,
 ) -> Array3<Point3D> {
     // this finite-difference computation uses average of deltaX, deltaY, deltaZ
     // on both sides on the stencil
@@ -104,7 +104,7 @@ pub fn compute_3d_points(
             * (&y.slice(s![0..-1, 1..-1, 0..-2]) - &y.slice(s![0..-1, 1..-1, 2..])));
 
     // dz
-    let mut dz = (&field.slice(s![2.., 1..-1, 1..-1]) - &field.slice(s![0..-2, 1..-1, 1..-1]))
+    let dz = (&field.slice(s![2.., 1..-1, 1..-1]) - &field.slice(s![0..-2, 1..-1, 1..-1]))
         / (&z.slice(s![2.., 1..-1, 1..-1]) - &z.slice(s![0..-2, 1..-1, 1..-1]));
 
     let dz_bottom = (-3.0 * &field.slice(s![0, 1..-1, 1..-1])
@@ -116,7 +116,7 @@ pub fn compute_3d_points(
     let dz = concatenate![Axis(0), dz_bottom, dz];
 
     // dxdz
-    let mut dxdz = (&field.slice(s![2.., 2.., 1..-1])
+    let dxdz = (&field.slice(s![2.., 2.., 1..-1])
         - &field.slice(s![0..-2, 2.., 1..-1])
         - &field.slice(s![2.., 0..-2, 1..-1])
         + &field.slice(s![0..-2, 0..-2, 1..-1]))
@@ -134,7 +134,7 @@ pub fn compute_3d_points(
     let dxdz = concatenate![Axis(0), dxdz_bottom, dxdz];
 
     // dydz
-    let mut dydz = (&field.slice(s![2.., 1..-1, 0..-2])
+    let dydz = (&field.slice(s![2.., 1..-1, 0..-2])
         - &field.slice(s![0..-2, 1..-1, 0..-2])
         - &field.slice(s![2.., 1..-1, 2..])
         + &field.slice(s![0..-2, 1..-1, 2..]))
@@ -152,34 +152,34 @@ pub fn compute_3d_points(
     let dydz = concatenate![Axis(0), dydz_bottom, dydz];
 
     // dxdydz
-    let mut dxdydz = (&field.slice(s![2.., 2.., 0..-2]) //
-        - &field.slice(s![2.., 2.., 2..]) //
-        - &field.slice(s![2.., 0..-2, 0..-2]) //
-        + &field.slice(s![2.., 0..-2, 2..]) //
-        - &field.slice(s![0..-2, 2.., 0..-2]) //
-        + &field.slice(s![0..-2, 2.., 2..]) //
-        + &field.slice(s![0..-2, 0..-2, 0..-2]) //
-        - &field.slice(s![0..-2, 0..-2, 2..])) //
-        / ((&x.slice(s![1..-1, 2.., 1..-1]) - &x.slice(s![1..-1, 0..-2, 1..-1])) //
-            * (&y.slice(s![1..-1, 1..-1, 0..-2]) - &y.slice(s![1..-1, 1..-1, 2..])) //
+    let dxdydz = (&field.slice(s![2.., 2.., 0..-2])
+        - &field.slice(s![2.., 2.., 2..])
+        - &field.slice(s![2.., 0..-2, 0..-2])
+        + &field.slice(s![2.., 0..-2, 2..])
+        - &field.slice(s![0..-2, 2.., 0..-2])
+        + &field.slice(s![0..-2, 2.., 2..])
+        + &field.slice(s![0..-2, 0..-2, 0..-2])
+        - &field.slice(s![0..-2, 0..-2, 2..]))
+        / ((&x.slice(s![1..-1, 2.., 1..-1]) - &x.slice(s![1..-1, 0..-2, 1..-1]))
+            * (&y.slice(s![1..-1, 1..-1, 0..-2]) - &y.slice(s![1..-1, 1..-1, 2..]))
             * (&z.slice(s![2.., 1..-1, 1..-1]) - &z.slice(s![0..-2, 1..-1, 1..-1]))); //
 
     let dxdydz_bottom = ((-3.0
-        * ((&field.slice(s![0, 2.., 0..-2])) //
-            - (&field.slice(s![0, 2.., 2..])) //
-            - (&field.slice(s![0, 0..-2, 0..-2])) //
-            + (&field.slice(s![0, 0..-2, 2..])))) //
+        * ((&field.slice(s![0, 2.., 0..-2]))
+            - (&field.slice(s![0, 2.., 2..]))
+            - (&field.slice(s![0, 0..-2, 0..-2]))
+            + (&field.slice(s![0, 0..-2, 2..]))))
         + (4.0
-            * ((&field.slice(s![1, 2.., 0..-2])) //
-                - (&field.slice(s![1, 2.., 2..])) //
-                - (&field.slice(s![1, 0..-2, 0..-2])) //
+            * ((&field.slice(s![1, 2.., 0..-2]))
+                - (&field.slice(s![1, 2.., 2..]))
+                - (&field.slice(s![1, 0..-2, 0..-2]))
                 + (&field.slice(s![1, 0..-2, 2..]))))
-        - ((&field.slice(s![2, 2.., 0..-2])) //
-            - (&field.slice(s![2, 2.., 2..])) //
-            - (&field.slice(s![2, 0..-2, 0..-2])) //
-            + (&field.slice(s![2, 0..-2, 2..])))) //
-        / ((&x.slice(s![0, 2.., 1..-1]) - &x.slice(s![0, 0..-2, 1..-1])) //
-            * (&y.slice(s![0, 1..-1, 0..-2]) - &y.slice(s![0, 1..-1, 2..])) //
+        - ((&field.slice(s![2, 2.., 0..-2]))
+            - (&field.slice(s![2, 2.., 2..]))
+            - (&field.slice(s![2, 0..-2, 0..-2]))
+            + (&field.slice(s![2, 0..-2, 2..]))))
+        / ((&x.slice(s![0, 2.., 1..-1]) - &x.slice(s![0, 0..-2, 1..-1]))
+            * (&y.slice(s![0, 1..-1, 0..-2]) - &y.slice(s![0, 1..-1, 2..]))
             * (&z.slice(s![2, 1..-1, 1..-1]) - &z.slice(s![0, 1..-1, 1..-1])));
 
     let dxdydz_bottom = dxdydz_bottom.insert_axis(Axis(0));

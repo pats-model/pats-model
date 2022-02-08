@@ -46,14 +46,14 @@ use ndarray::{concatenate, s, stack, Array, Array2, Axis, Zip};
 /// memory as 2D arrays.
 #[derive(Debug)]
 pub struct Surfaces {
-    lons: Array2<Float>,
-    lats: Array2<Float>,
-    height_coeffs: Array2<[Float; 16]>,
-    pressure_coeffs: Array2<[Float; 16]>,
-    temperature_coeffs: Array2<[Float; 16]>,
-    dewpoint_coeffs: Array2<[Float; 16]>,
-    u_wind_coeffs: Array2<[Float; 16]>,
-    v_wind_coeffs: Array2<[Float; 16]>,
+    pub lons: Array2<Float>,
+    pub lats: Array2<Float>,
+    pub height_coeffs: Array2<[Float; 16]>,
+    pub pressure_coeffs: Array2<[Float; 16]>,
+    pub temperature_coeffs: Array2<[Float; 16]>,
+    pub dewpoint_coeffs: Array2<[Float; 16]>,
+    pub u_wind_coeffs: Array2<[Float; 16]>,
+    pub v_wind_coeffs: Array2<[Float; 16]>,
 }
 
 /// (TODO: What it is)
@@ -70,7 +70,7 @@ struct RawSurfaces {
 }
 
 impl Surfaces {
-    pub fn new(
+    pub(super) fn new(
         input: &Input,
         domain_edges: DomainExtent<usize>,
         proj: &LambertConicConformal,
@@ -278,22 +278,22 @@ fn compute_surfaces_data(
 
     // compute derivatives
     let height_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.height, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.height, &coords_xy.0, &coords_xy.1);
 
     let pressure_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.pressure, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.pressure, &coords_xy.0, &coords_xy.1);
 
     let temperature_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.temperature, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.temperature, &coords_xy.0, &coords_xy.1);
 
     let dewpoint_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.dewpoint, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.dewpoint, &coords_xy.0, &coords_xy.1);
 
     let u_wind_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.u_wind, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.u_wind, &coords_xy.0, &coords_xy.1);
 
     let v_wind_data_points =
-        finite_difference::compute_2d_points(raw_surfaces.v_wind, coords_xy.0, coords_xy.1);
+        finite_difference::compute_2d_points(&raw_surfaces.v_wind, &coords_xy.0, &coords_xy.1);
 
     // compute coefficients
     let height_coeffs = compute_surface_coeffs(height_data_points);

@@ -20,7 +20,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Sub-module responsible for handling
 //! pressure level data buffering.
 use super::finite_difference;
-use super::interpolation::{precompute_tricubic_coeffs, Point3D};
+use super::interpolation::{precompute_tricubic_coefficients, Point3D};
 use super::projection::LambertConicConformal;
 use crate::model::{configuration, LonLat};
 use crate::{
@@ -57,20 +57,20 @@ struct RawFields {
 /// memory as 3D arrays.
 #[derive(Debug)]
 pub struct Fields {
-    lons: Array2<Float>,
-    lats: Array2<Float>,
-    height: Array3<Float>,
+    pub lons: Array2<Float>,
+    pub lats: Array2<Float>,
+    pub height: Array3<Float>,
 
-    temperature_coeffs: Array3<[Float; 64]>,
-    pressure_coeffs: Array3<[Float; 64]>,
-    u_wind_coeffs: Array3<[Float; 64]>,
-    v_wind_coeffs: Array3<[Float; 64]>,
-    spec_humidity_coeffs: Array3<[Float; 64]>,
-    virtual_temp_coeffs: Array3<[Float; 64]>,
+    pub temperature_coeffs: Array3<[Float; 64]>,
+    pub pressure_coeffs: Array3<[Float; 64]>,
+    pub u_wind_coeffs: Array3<[Float; 64]>,
+    pub v_wind_coeffs: Array3<[Float; 64]>,
+    pub spec_humidity_coeffs: Array3<[Float; 64]>,
+    pub virtual_temp_coeffs: Array3<[Float; 64]>,
 }
 
 impl Fields {
-    pub fn new(
+    pub(super) fn new(
         input: &Input,
         domain_edges: DomainExtent<usize>,
         proj: &LambertConicConformal,
@@ -421,45 +421,45 @@ fn compute_fields_data(
 
     // compute derivatives
     let pressure_data_points = finite_difference::compute_3d_points(
-        raw_fields.pressure,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.pressure,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     let temperature_data_points = finite_difference::compute_3d_points(
-        raw_fields.temperature,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.temperature,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     let spec_humidity_data_points = finite_difference::compute_3d_points(
-        raw_fields.specific_humidity,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.specific_humidity,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     let uwind_data_points = finite_difference::compute_3d_points(
-        raw_fields.u_wind,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.u_wind,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     let vwind_data_points = finite_difference::compute_3d_points(
-        raw_fields.v_wind,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.v_wind,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     let virtual_temp_data_points = finite_difference::compute_3d_points(
-        raw_fields.virtual_temperature,
-        coords_xy.0,
-        coords_xy.1,
-        raw_fields.height,
+        &raw_fields.virtual_temperature,
+        &coords_xy.0,
+        &coords_xy.1,
+        &raw_fields.height,
     );
 
     // compute coefficients
@@ -542,7 +542,7 @@ fn compute_field_coeffs(points: Array3<Point3D>) -> Array3<[Float; 64]> {
         .and(&points_lower)
         .and(&points_upper)
         .for_each(|coeffs, &pl, &pu| {
-            *coeffs = precompute_tricubic_coeffs([
+            *coeffs = precompute_tricubic_coefficients([
                 pl[0], pl[1], pl[2], pl[3], pu[0], pu[1], pu[2], pu[3],
             ]);
         });

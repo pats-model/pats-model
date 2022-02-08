@@ -21,17 +21,13 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! environment and surface boundary
 //! conditions data.
 
-use ndarray::s;
-
+use super::{bisection, Environment, FieldTypes, SurfaceTypes};
 use crate::{
     errors::{EnvironmentError, SearchError},
-    model::environment::interpolation::{
-        interpolate_bilinear, interpolate_tilinear, Point2D, Point3D,
-    },
+    model::environment::interpolation::{interpolate_bicubic, interpolate_tricubic},
     Float,
 };
-
-use super::{bisection, FieldTypes, Environment, SurfaceTypes};
+use ndarray::s;
 
 impl Environment {
     /// Function to get interpolated value of given
@@ -58,41 +54,26 @@ impl Environment {
             &lat,
         )?;
 
-        let field = match field {
-            SurfaceTypes::Temperature => self.surfaces.temperature.view(),
-            SurfaceTypes::Dewpoint => self.surfaces.dewpoint.view(),
-            SurfaceTypes::Pressure => self.surfaces.pressure.view(),
-            SurfaceTypes::Height => self.surfaces.height.view(),
-            #[cfg(feature = "3d")]
-            SurfaceTypes::UWind => self.surface.u_wind.view(),
-            #[cfg(feature = "3d")]
-            SurfaceTypes::VWind => self.surface.v_wind.view(),
-        };
+        // check if indexes are not on the rightmost edge
 
-        let horizontal_points = [
-            (west_lon_index, south_lat_index),
-            (west_lon_index, south_lat_index + 1),
-            (west_lon_index + 1, south_lat_index),
-            (west_lon_index + 1, south_lat_index + 1),
-        ];
-
-        let mut ref_points = [Point2D::default(); 4];
-
-        for (i, (x_index, y_index)) in horizontal_points.iter().enumerate() {
-            let (lon, lat) = (
-                self.fields.lons[[*x_index, *y_index]],
-                self.fields.lats[[*x_index, *y_index]],
-            );
-            let (x, y) = self.projection.project(lon, lat);
-
-            ref_points[i] = Point2D {
-                x,
-                y,
-                value: field[[*x_index, *y_index]],
-            };
+        if west_lon_index == self.fields.lons.slice(s![.., 0]).len() - 1
+            || south_lat_index == self.fields.lats.slice(s![west_lon_index, ..]).len() - 1
+        {
+            return Err(SearchError::OutOfBounds.into());
         }
 
-        let result_val = interpolate_bilinear(x, y, ref_points);
+        let field = match field {
+            SurfaceTypes::Temperature => self.surfaces.temperature_coeffs.view(),
+            SurfaceTypes::Dewpoint => self.surfaces.dewpoint_coeffs.view(),
+            SurfaceTypes::Pressure => self.surfaces.pressure_coeffs.view(),
+            SurfaceTypes::Height => self.surfaces.height_coeffs.view(),
+            #[cfg(feature = "3d")]
+            SurfaceTypes::UWind => self.surface.u_wind_coeffs.view(),
+            #[cfg(feature = "3d")]
+            SurfaceTypes::VWind => self.surface.v_wind_coeffs.view(),
+        };
+
+        let result_val = interpolate_bicubic(x, y, field[[west_lon_index, south_lat_index]]);
 
         Ok(result_val)
     }
@@ -122,71 +103,47 @@ impl Environment {
             &lat,
         )?;
 
-        let field = match field {
-            FieldTypes::Pressure => self.fields.pressure.view(),
-            FieldTypes::VirtualTemperature => self.fields.virtual_temp.view(),
-            FieldTypes::UWind => self.fields.u_wind.view(),
-            FieldTypes::VWind => self.fields.v_wind.view(),
-        };
+        let z_index_search_array = self
+            .fields
+            .height
+            .slice(s![.., west_lon_index, south_lat_index])
+            .to_vec();
 
-        let horizontal_points = [
-            (west_lon_index, south_lat_index),
-            (west_lon_index, south_lat_index + 1),
-            (west_lon_index + 1, south_lat_index),
-            (west_lon_index + 1, south_lat_index + 1),
-        ];
+        let z_index = bisection::find_left_closest(&z_index_search_array, &z).or_else(|err| {
+            // when searched height is below the lowest level
+            // we set lowest point to 0-level for extrapolation
+            // in all other cases error is returned
 
-        let mut ref_points = [Point3D::default(); 8];
-
-        for (i, (x_index, y_index)) in horizontal_points.iter().enumerate() {
-            let z_index_search_array = self
-                .fields
-                .height
-                .slice(s![.., *x_index, *y_index])
-                .to_vec();
-
-            let z_index =
-                bisection::find_left_closest(&z_index_search_array, &z).or_else(|err| {
-                    // when searched height is below the lowest level
-                    // we set lowest point to 0-level for extrapolation
-                    // in all other cases error is returned
-
-                    match err {
-                        SearchError::OutOfBounds => {
-                            if z < self.fields.height[[0, *x_index, *y_index]] {
-                                Ok(0)
-                            } else {
-                                Err(err)
-                            }
-                        }
-                        SearchError::EmptyArray => Err(err),
+            match err {
+                SearchError::OutOfBounds => {
+                    if z < self.fields.height[[0, west_lon_index, south_lat_index]] {
+                        Ok(0)
+                    } else {
+                        Err(err)
                     }
-                })?;
+                }
+                SearchError::EmptyArray => Err(err),
+            }
+        })?;
 
-            let (lon, lat) = (
-                self.fields.lons[[*x_index, *y_index]],
-                self.fields.lats[[*x_index, *y_index]],
-            );
-            let (x, y) = self.projection.project(lon, lat);
+        // check if indexes are not on the rightmost edge
 
-            // bottom point
-            ref_points[i] = Point3D {
-                x,
-                y,
-                z: self.fields.height[[z_index, *x_index, *y_index]],
-                value: field[[z_index, *x_index, *y_index]],
-            };
-
-            // upper point
-            ref_points[i + 4] = Point3D {
-                x,
-                y,
-                z: self.fields.height[[z_index + 1, *x_index, *y_index]],
-                value: field[[z_index + 1, *x_index, *y_index]],
-            };
+        if west_lon_index == self.fields.lons.slice(s![.., 0]).len() - 1
+            || south_lat_index == self.fields.lats.slice(s![west_lon_index, ..]).len() - 1
+            || z_index == z_index_search_array.len() - 1
+        {
+            return Err(SearchError::OutOfBounds.into());
         }
 
-        let result_val = interpolate_tilinear(x, y, z, ref_points);
+        let field = match field {
+            FieldTypes::Pressure => self.fields.pressure_coeffs.view(),
+            FieldTypes::VirtualTemperature => self.fields.virtual_temp_coeffs.view(),
+            FieldTypes::UWind => self.fields.u_wind_coeffs.view(),
+            FieldTypes::VWind => self.fields.v_wind_coeffs.view(),
+        };
+
+        let result_val =
+            interpolate_tricubic(x, y, z, field[[z_index, west_lon_index, south_lat_index]]);
 
         Ok(result_val)
     }
