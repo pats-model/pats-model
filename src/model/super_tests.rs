@@ -6,11 +6,9 @@
 //! setup for each unit test. So this "super-unit-test" is a workaround
 //! for that issue.
 
-use std::path::Path;
-
 use super::configuration::Config;
-
-use super::environment::{FieldTypes, Environment};
+use super::environment::{Environment, FieldTypes};
+use std::path::Path;
 
 #[test]
 fn pressure_interpolation() {
@@ -26,6 +24,6 @@ fn pressure_interpolation() {
             .get_field_value(x, y, z as f64, FieldTypes::Pressure)
             .unwrap();
 
-        println!("{:>5.1} {:>5.2}",z as f64, v);
+        println!("{:>5.1} {:>5.2}", z as f64, v);
     }
 }

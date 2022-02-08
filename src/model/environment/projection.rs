@@ -22,11 +22,10 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! Closely follows algorithms and instructions in:
 //! <https://pubs.er.usgs.gov/publication/pp1395>
 
-use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
-use float_cmp::approx_eq;
-
 use crate::constants::{WGS84_A, WGS84_E};
 use crate::{errors::ProjectionError, Float};
+use float_cmp::approx_eq;
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4};
 
 /// Front-facing struct of Lambert Conformal Conic projection.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default)]

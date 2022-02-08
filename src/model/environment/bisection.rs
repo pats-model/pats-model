@@ -26,7 +26,7 @@ use crate::errors::SearchError;
 /// Core bisection function, simply an implementation
 /// of binary search algorithm adapted to searching values
 /// in-between the set items.
-/// 
+///
 /// Alternatively, `binary_search()` function for slice type could be used,
 /// but this function is highly customised to the model needs and there are no
 /// apparent advantages of using built-in binary_search() over custom one.

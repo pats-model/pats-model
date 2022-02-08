@@ -21,8 +21,8 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //!
 //! (Why it is neccessary)
 
-use std::ops::{Add, AddAssign, Mul};
 use crate::Float;
+use std::ops::{Add, AddAssign, Mul};
 
 /// (TODO: What it is)
 ///

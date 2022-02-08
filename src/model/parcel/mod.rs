@@ -25,12 +25,6 @@ pub(super) mod conv_params;
 mod logger;
 mod runge_kutta;
 
-use log::debug;
-use runge_kutta::RungeKuttaDynamics;
-use std::sync::Arc;
-use chrono::NaiveDateTime;
-use floccus::{mixing_ratio, virtual_temperature};
-use crate::{Float, errors::ParcelError, model::parcel::conv_params::compute_conv_params};
 use self::conv_params::ConvectiveParams;
 use super::{
     configuration::Config,
@@ -40,6 +34,12 @@ use super::{
     },
     vec3::Vec3,
 };
+use crate::{errors::ParcelError, model::parcel::conv_params::compute_conv_params, Float};
+use chrono::NaiveDateTime;
+use floccus::{mixing_ratio, virtual_temperature};
+use log::debug;
+use runge_kutta::RungeKuttaDynamics;
+use std::sync::Arc;
 
 #[cfg(feature = "3d")]
 use super::environment::SurfaceTypes::{UWind, VWind};

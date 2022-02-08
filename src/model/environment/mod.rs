@@ -23,10 +23,10 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 mod accesser;
 mod bisection;
 mod fields;
+mod finite_difference;
 mod interpolation;
 mod projection;
 mod surfaces;
-mod finite_difference;
 
 use super::configuration::{Config, Domain};
 use crate::constants::{NS_C_EARTH, WE_C_EARTH};
@@ -94,7 +94,6 @@ impl Environment {
 
         let surfaces = Surfaces::new(&config.input, domain_edges, &projection)?;
         let fields = Fields::new(&config.input, domain_edges, &projection)?;
-        
 
         Ok(Environment {
             fields,
