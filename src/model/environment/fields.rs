@@ -162,8 +162,11 @@ fn obtain_lonlat_fields_coords(
     let lons = Array::from_vec(lons);
     let lats = Array::from_vec(lats);
 
-    let lons = stack(Axis(1), vec![lons.view(); lats.len()].as_slice()).unwrap();
-    let lats = stack(Axis(0), vec![lats.view(); lons.len()].as_slice()).unwrap();
+    let lons_view = vec![lons.view(); lats.len()];
+    let lats_view = vec![lats.view(); lons.len()];
+
+    let lons = stack(Axis(1), lons_view.as_slice()).unwrap();
+    let lats = stack(Axis(0), lats_view.as_slice()).unwrap();
 
     (lons, lats)
 }

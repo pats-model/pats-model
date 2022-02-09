@@ -41,16 +41,15 @@ impl Environment {
         let (lon, lat) = self.projection.inverse_project(x, y);
 
         let west_lon_index = bisection::find_left_closest(
-            self.surfaces.lons.slice(s![.., 0]).as_slice().unwrap(),
+            &self.surfaces.lons.slice(s![.., 0]).to_vec(),
             &lon,
         )?;
 
         let south_lat_index = bisection::find_left_closest(
-            self.surfaces
+            &self.surfaces
                 .lats
                 .slice(s![west_lon_index, ..])
-                .as_slice()
-                .unwrap(),
+                .to_vec(),
             &lat,
         )?;
 
@@ -68,9 +67,9 @@ impl Environment {
             SurfaceTypes::Pressure => self.surfaces.pressure_coeffs.view(),
             SurfaceTypes::Height => self.surfaces.height_coeffs.view(),
             #[cfg(feature = "3d")]
-            SurfaceTypes::UWind => self.surface.u_wind_coeffs.view(),
+            SurfaceTypes::UWind => self.surfaces.u_wind_coeffs.view(),
             #[cfg(feature = "3d")]
-            SurfaceTypes::VWind => self.surface.v_wind_coeffs.view(),
+            SurfaceTypes::VWind => self.surfaces.v_wind_coeffs.view(),
         };
 
         let result_val = interpolate_bicubic(x, y, &field[[west_lon_index, south_lat_index]]);
@@ -90,16 +89,15 @@ impl Environment {
         let (lon, lat) = self.projection.inverse_project(x, y);
 
         let west_lon_index = bisection::find_left_closest(
-            self.fields.lons.slice(s![.., 0]).as_slice().unwrap(),
+            &self.fields.lons.slice(s![.., 0]).to_vec(),
             &lon,
         )?;
 
         let south_lat_index = bisection::find_left_closest(
-            self.fields
+            &self.fields
                 .lats
                 .slice(s![west_lon_index, ..])
-                .as_slice()
-                .unwrap(),
+                .to_vec(),
             &lat,
         )?;
 

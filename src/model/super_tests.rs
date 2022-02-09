@@ -19,7 +19,7 @@ fn pressure_interpolation() {
         .projection
         .project(cfg.domain.ref_lon, cfg.domain.ref_lat);
 
-    for z in (250..=10_000).step_by(1) {
+    for z in (85..=10_000).step_by(1) {
         let v = env
             .get_field_value(x, y, z as f64, FieldTypes::Pressure)
             .unwrap();

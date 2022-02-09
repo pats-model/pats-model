@@ -4,18 +4,19 @@
 # check the configuration module documentaiton
 
 domain:
-  ref_lat: 49.00                # Latitude of SW corner of domain
-  ref_lon: 14.00                # Longitude of SW corner of domain
+  ref_lat: 52.625                # Latitude of SW corner of domain
+  ref_lon: 21.125                # Longitude of SW corner of domain
   spacing: 10000.0               # grid spacing in meters
-  shape: [10, 10]             # lon-lat shape of domain (in number of model gridpoints)
+  shape: [1, 1]             # lon-lat shape of domain (in number of model gridpoints)
 datetime:
-  start: "2021-06-24T06:00:00"
+  start: "2021-07-14T12:00:00"
   timestep: 1.0                 # model timestep in seconds
 input:
   level_type: "isobaricInhPa"   # type of level to be read from data files
   data_files:                   # list of files with environment and surface data
-    - "./data/era5_pl.grib"
-    - "./data/era5_surface.grib"
+    - "./data/20210714_hpa.grib"
+    - "./data/20210714_sfc.grib"
 resources:    
   threads: 8                    # number of threads the model should use
-  memory: 8192                  # memory cap for model in MB
+  memory: 4096                  # memory cap for model in MB
+
