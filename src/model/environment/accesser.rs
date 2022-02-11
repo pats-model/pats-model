@@ -125,6 +125,7 @@ impl Environment {
             EnvFields::VirtualTemperature => self.fields.virtual_temp.view(),
             EnvFields::UWind => self.fields.u_wind.view(),
             EnvFields::VWind => self.fields.v_wind.view(),
+            EnvFields::VerticalVel => self.fields.vertical_vel.view(),
         };
 
         let horizontal_points = [

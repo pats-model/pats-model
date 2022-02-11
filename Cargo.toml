@@ -17,7 +17,7 @@
 
 [package]
 name = "pats"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 publish = false
 authors = ["Jakub Lewandowski <scaleweather@gmail.com>"]
@@ -48,7 +48,7 @@ float-cmp = "0.9.0"
 debug = ["floccus/debug"]
 3d = []
 raw_output = []
-vertical_motion = []
+env_vertical_motion = []
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "./src/html/docs-header.html"]

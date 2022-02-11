@@ -51,6 +51,7 @@ pub enum EnvFields {
     VirtualTemperature,
     UWind,
     VWind,
+    VerticalVel,
 }
 
 /// Enum containing surface fields

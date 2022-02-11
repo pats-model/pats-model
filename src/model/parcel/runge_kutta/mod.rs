@@ -25,7 +25,7 @@ mod schemes;
 
 use super::{ParcelState, Vec3};
 use crate::errors::ParcelSimulationError;
-use crate::model::environment::EnvFields::{UWind, VWind, VirtualTemperature};
+use crate::model::environment::EnvFields::{UWind, VWind, VerticalVel, VirtualTemperature};
 use crate::{model::environment::Environment, Float};
 use chrono::Duration;
 use floccus::constants::G;
@@ -143,6 +143,15 @@ impl<'a> RungeKuttaDynamics<'a> {
                 )?;
             }
 
+            if cfg!(feature = "env_vertical_motion") {
+                result_parcel.velocity.z += self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    VerticalVel,
+                )?;
+            }
+
             result_parcel = adiabatic_scheme.state_at_position(&result_parcel)?;
 
             if result_parcel.velocity.z <= 0.0
@@ -226,6 +235,15 @@ impl<'a> RungeKuttaDynamics<'a> {
                     result_parcel.position.y,
                     result_parcel.position.z,
                     VWind,
+                )?;
+            }
+
+            if cfg!(feature = "env_vertical_motion") {
+                result_parcel.velocity.z += self.env.get_field_value(
+                    result_parcel.position.x,
+                    result_parcel.position.y,
+                    result_parcel.position.z,
+                    VerticalVel,
                 )?;
             }
 

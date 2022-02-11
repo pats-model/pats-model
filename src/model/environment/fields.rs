@@ -53,6 +53,7 @@ pub struct Fields {
     pub v_wind: Array3<Float>,
     pub spec_humidity: Array3<Float>,
     pub virtual_temp: Array3<Float>,
+    pub vertical_vel: Array3<Float>,
 }
 
 impl Fields {
@@ -84,7 +85,8 @@ pub(super) fn collect(input: &configuration::Input) -> Result<Vec<KeyedMessage>,
                             || msg.read_key("shortName")?.value == Str("q".to_string())
                             || msg.read_key("shortName")?.value == Str("t".to_string())
                             || msg.read_key("shortName")?.value == Str("u".to_string())
-                            || msg.read_key("shortName")?.value == Str("v".to_string())),
+                            || msg.read_key("shortName")?.value == Str("v".to_string())
+                            || msg.read_key("shortName")?.value == Str("w".to_string())),
                 )
             })
             .collect()?;
@@ -187,6 +189,10 @@ fn assign_fields(
 
     let virtual_temp = compute_virtual_temperature(&temperature, &spec_humidity);
 
+    let vertical_motion = read_raw_field("w", input_shape, data)?;
+    let vertical_motion = truncate_field_to_extent(&vertical_motion, domain_edges);
+    let vertical_vel = compute_vertical_velocity(&pressure, &height, &vertical_motion);
+
     Ok(Fields {
         lons: coords.0,
         lats: coords.1,
@@ -197,6 +203,7 @@ fn assign_fields(
         v_wind,
         spec_humidity,
         virtual_temp,
+        vertical_vel,
     })
 }
 
@@ -396,4 +403,23 @@ fn compute_virtual_temperature(
         });
 
     virtual_temperature
+}
+
+/// What it is?
+fn compute_vertical_velocity(
+    pressure: &Array3<Float>,
+    height: &Array3<Float>,
+    vertical_motion: &Array3<Float>,
+) -> Array3<Float> {
+    // compute thickness in negative m Pa^-1
+    let mut thickness = (&height.slice(s![1.., .., ..]) - &height.slice(s![0..-1, .., ..]))
+        / (&pressure.slice(s![1.., .., ..]) - &pressure.slice(s![0..-1, .., ..]));
+
+    // thickness array doesn't have the top level, so we will copy it
+    let thickness_top = thickness.slice(s![-1, .., ..]).to_owned();
+    let thickness_top = Array2::from(thickness_top);
+    thickness.push(Axis(0), thickness_top.view()).unwrap();
+
+    // multiply vertical motion and thickness to get velocity
+    vertical_motion * thickness
 }

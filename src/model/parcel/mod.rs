@@ -29,6 +29,7 @@ use self::conv_params::ConvectiveParams;
 use super::{
     configuration::Config,
     environment::{
+        EnvFields::VerticalVel,
         Environment,
         SurfaceFields::{Dewpoint, Height, Pressure, Temperature},
     },
@@ -124,7 +125,11 @@ fn prepare_parcel(
     // currently, constant initial vertical velocity (0.2 m/s)
     // but then lifiting can be taken into account
     // also as initial acceleration
-    let z_vel = 0.2;
+    let mut z_vel = 0.2;
+
+    if cfg!(feature = "env_vertical_motion") {
+        z_vel += environment.get_field_value(x_pos, y_pos, z_pos, VerticalVel)?;
+    }
 
     let pres = environment.get_surface_value(x_pos, y_pos, Pressure)?;
     let temp = environment.get_surface_value(x_pos, y_pos, Temperature)?;
