@@ -13,10 +13,12 @@ def main():
     # read pre-calculate and prepare data
     conv1d = pandas.read_csv("1d_convective_params.csv", header=[0])
     conv1d = conv1d[["start_lon", "start_lat", "cape"]]
+    conv1d.rename(columns={"start_lon": "Lon", "start_lat": "Lat"}, inplace=True)
     conv1d.rename(columns={"cape": "CAPE1D"}, inplace=True)
 
     conv3d = pandas.read_csv("3d_convective_params.csv", header=[0])
     conv3d = conv3d[["start_lon", "start_lat", "cape"]]
+    conv3d.rename(columns={"start_lon": "Lon", "start_lat": "Lat"}, inplace=True)
     conv3d.rename(columns={"cape": "CAPE3D"}, inplace=True)
 
     conv = pandas.merge(conv1d, conv3d)
@@ -57,7 +59,7 @@ def main():
         cape_era,
         numpy.linspace(0.0, 4000.0, 101),
         cmap=get_pivotal_cmap(),
-        extend='max',
+        extend="max",
         transform=ccrs.PlateCarree(),
     )
 
