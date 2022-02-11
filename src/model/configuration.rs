@@ -42,6 +42,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+type Shape = (usize, usize);
+
 /// Fields with model domain information.
 ///
 /// Model domain is defined as the area from which parcels
@@ -200,7 +202,7 @@ impl Input {
     /// and a grid shape of input GRIB files.
     fn read_distinct_lonlats_and_shape(
         &self,
-    ) -> Result<(LonLat<Vec<Float>>, (usize, usize)), InputError> {
+    ) -> Result<(LonLat<Vec<Float>>, Shape), InputError> {
         // We can read any message from any file as we assume that lat-lons
         // are aligned in all GRIB messages
 
