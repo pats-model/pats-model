@@ -62,9 +62,9 @@ impl Environment {
             SurfaceFields::Pressure => self.surfaces.pressure.view(),
             SurfaceFields::Height => self.surfaces.height.view(),
             #[cfg(feature = "3d")]
-            SurfaceFields::UWind => self.surface.u_wind.view(),
+            SurfaceFields::UWind => self.surfaces.u_wind.view(),
             #[cfg(feature = "3d")]
-            SurfaceFields::VWind => self.surface.v_wind.view(),
+            SurfaceFields::VWind => self.surfaces.v_wind.view(),
         };
 
         let horizontal_points = [
