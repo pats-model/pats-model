@@ -45,12 +45,12 @@ impl Environment {
         let (lon, lat) = self.projection.inverse_project(x, y);
 
         let west_lon_index = bisection::find_left_closest(
-            self.surface.lons.slice(s![.., 0]).as_slice().unwrap(),
+            self.surfaces.lons.slice(s![.., 0]).as_slice().unwrap(),
             &lon,
         )?;
 
         let south_lat_index = bisection::find_left_closest(
-            self.surface
+            self.surfaces
                 .lats
                 .slice(s![west_lon_index, ..])
                 .as_slice()
@@ -59,10 +59,10 @@ impl Environment {
         )?;
 
         let field = match field {
-            SurfaceFields::Temperature => self.surface.temperature.view(),
-            SurfaceFields::Dewpoint => self.surface.dewpoint.view(),
-            SurfaceFields::Pressure => self.surface.pressure.view(),
-            SurfaceFields::Height => self.surface.height.view(),
+            SurfaceFields::Temperature => self.surfaces.temperature.view(),
+            SurfaceFields::Dewpoint => self.surfaces.dewpoint.view(),
+            SurfaceFields::Pressure => self.surfaces.pressure.view(),
+            SurfaceFields::Height => self.surfaces.height.view(),
             #[cfg(feature = "3d")]
             SurfaceFields::UWind => self.surface.u_wind.view(),
             #[cfg(feature = "3d")]
