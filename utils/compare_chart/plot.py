@@ -57,6 +57,7 @@ def main():
         cape_era,
         numpy.linspace(0.0, 4000.0, 101),
         cmap=get_pivotal_cmap(),
+        extend='max',
         transform=ccrs.PlateCarree(),
     )
 
