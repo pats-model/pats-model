@@ -12,12 +12,12 @@ from carto_plot import configure_carto_plot
 def main():
     # read pre-calculate and prepare data
     conv1d = pandas.read_csv("1d_convective_params.csv", header=[0])
-    conv1d = conv1d[["Lon", "Lat", "CAPE"]]
-    conv1d.rename(columns={"CAPE": "CAPE1D"}, inplace=True)
+    conv1d = conv1d[["start_lon", "start_lat", "cape"]]
+    conv1d.rename(columns={"cape": "CAPE1D"}, inplace=True)
 
     conv3d = pandas.read_csv("3d_convective_params.csv", header=[0])
-    conv3d = conv3d[["Lon", "Lat", "CAPE"]]
-    conv3d.rename(columns={"CAPE": "CAPE3D"}, inplace=True)
+    conv3d = conv3d[["start_lon", "start_lat", "cape"]]
+    conv3d.rename(columns={"cape": "CAPE3D"}, inplace=True)
 
     conv = pandas.merge(conv1d, conv3d)
 
@@ -43,7 +43,7 @@ def main():
     radar_data = get_radar_data("imgw_radar.cmax")
 
     # plot
-    fig = plt.figure(figsize=(12, 12), dpi=300)
+    fig = plt.figure(figsize=(12, 12), dpi=450)
 
     ##########
     ax0 = fig.add_subplot(2, 2, 3, projection=ccrs.Mercator())

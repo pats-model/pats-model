@@ -40,30 +40,30 @@ pub struct ConvectiveParams {
     start_lon: Float,
     start_lat: Float,
 
-    // Parcel Top Height
+    /// Parcel Top Height
     parcel_top: Float,
 
-    // Parcel displacement from initial point
+    /// Parcel displacement from initial point
     x_displac: Float,
     y_displac: Float,
 
-    // Parcel Maximum Vertical Velocity
+    /// Parcel Maximum Vertical Velocity
     max_vert_vel: Float,
 
-    // Condensation Level
-    // (similar to Convective Condensation Level)
+    /// Condensation Level
+    /// (similar to Convective Condensation Level)
     condens_lvl: Option<Float>,
 
-    // Level of Free Convection
+    /// Level of Free Convection
     lfc: Option<Float>,
 
-    // Equilibrium Level
+    /// Equilibrium Level
     el: Option<Float>,
 
-    // Convective Available Potential Energy
+    /// Convective Available Potential Energy
     cape: Option<Float>,
 
-    // Convective Inhibition
+    /// Convective Inhibition
     cin: Option<Float>,
 }
 
