@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Jakub Lewandowski
+Copyright 2021 - 2022 Jakub Lewandowski
 
 This file is part of Parcel Ascent Tracing System (PATS).
 
@@ -24,13 +24,13 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 mod schemes;
 
 use super::{ParcelState, Vec3};
-use floccus::constants::G;
-use schemes::{AdiabaticScheme, PseudoAdiabaticScheme};
 use crate::errors::ParcelSimulationError;
 use crate::model::environment::EnvFields::{UWind, VWind, VirtualTemperature};
 use crate::{model::environment::Environment, Float};
 use chrono::Duration;
+use floccus::constants::G;
 use log::debug;
+use schemes::{AdiabaticScheme, PseudoAdiabaticScheme};
 use std::sync::Arc;
 
 /// (TODO: What it is)

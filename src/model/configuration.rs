@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Jakub Lewandowski
+Copyright 2021 - 2022 Jakub Lewandowski
 
 This file is part of Parcel Ascent Tracing System (PATS).
 
@@ -27,6 +27,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! the fields inside `config.yaml` so you can check this documentation
 //! for more details how to set the config file.
 
+use super::LonLat;
 use crate::errors::{ConfigError, InputError};
 use crate::Float;
 use chrono::NaiveDateTime;
@@ -40,8 +41,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-
-use super::LonLat;
 
 /// Fields with model domain information.
 ///

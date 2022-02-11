@@ -1,5 +1,5 @@
 /*
-Copyright 2021 Jakub Lewandowski
+Copyright 2021 - 2022 Jakub Lewandowski
 
 This file is part of Parcel Ascent Tracing System (PATS).
 
@@ -21,8 +21,7 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! environment and surface boundary
 //! conditions data.
 
-use ndarray::s;
-
+use super::{bisection, EnvFields, Environment, SurfaceFields};
 use crate::{
     errors::{EnvironmentError, SearchError},
     model::environment::interpolation::{
@@ -30,8 +29,7 @@ use crate::{
     },
     Float,
 };
-
-use super::{bisection, EnvFields, Environment, SurfaceFields};
+use ndarray::s;
 
 impl Environment {
     /// Function to get interpolated value of given
