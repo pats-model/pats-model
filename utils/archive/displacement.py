@@ -1,4 +1,4 @@
-"""Plot CAPE 1D and 3D CAPE-diff, relative error and histograms"""
+"""Plot parcel displacemtns with histograms"""
 
 import pandas
 import numpy
