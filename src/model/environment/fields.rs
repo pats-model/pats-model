@@ -180,7 +180,7 @@ fn assign_fields(
     let spec_humidity = read_raw_field("q", input_shape, data)?;
     // check for negative values of specific humidity and replace them with the smallest positive value
     let spec_humidity = truncate_field_to_extent(&spec_humidity, domain_edges).mapv(|v| {
-        if v <= 0.0 {
+        if v < 1.0e-8 {
             1.0e-8
         } else {
             v
