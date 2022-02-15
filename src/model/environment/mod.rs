@@ -183,7 +183,7 @@ fn compute_domain_edges(
 
     debug!(
         "Computed buffering extent: N{:.2}<->{:.2} E{:.2}<->{:.2}",
-        domain_extent.north, domain_extent.south, domain_extent.east, domain_extent.west
+        domain_extent.south, domain_extent.north, domain_extent.west, domain_extent.east
     );
 
     let distinct_lonlats = &config.input.distinct_lonlats;
