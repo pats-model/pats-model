@@ -110,15 +110,14 @@ fn generate_domain_projection(domain: &Domain) -> Result<LambertConicConformal, 
 
     // if there's only one parcel to release in some direction
     // we use the special case for projection
-    let lon_0;
     let lat_1;
     let lat_2;
 
-    if sides.0 < 0.1 {
-        lon_0 = domain.ref_lon;
+    let lon_0 = if sides.0 < 0.1 {
+        domain.ref_lon
     } else {
-        lon_0 = approx_central_lon(domain.ref_lon, domain.ref_lat, sides.0);
-    }
+        approx_central_lon(domain.ref_lon, domain.ref_lat, sides.0)
+    };
 
     if sides.1 < 0.1 {
         lat_1 = domain.ref_lat - 1.0;

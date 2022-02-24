@@ -200,9 +200,7 @@ impl Input {
 
     /// Function to read distinct longitudes and latitudes
     /// and a grid shape of input GRIB files.
-    fn read_distinct_lonlats_and_shape(
-        &self,
-    ) -> Result<(LonLat<Vec<Float>>, Shape), InputError> {
+    fn read_distinct_lonlats_and_shape(&self) -> Result<(LonLat<Vec<Float>>, Shape), InputError> {
         // We can read any message from any file as we assume that lat-lons
         // are aligned in all GRIB messages
 
@@ -214,20 +212,19 @@ impl Input {
             "One or more input files does not contain any valid GRIB message",
         ))?;
 
-        let mut distinct_latitudes: Vec<Float>;
-        let mut distinct_longitudes: Vec<Float>;
+        let mut distinct_latitudes: Vec<Float> =
+            if let FloatArray(lats) = any_message.read_key("distinctLatitudes")?.value {
+                lats.into_iter().map(|v| v as Float).collect()
+            } else {
+                return Err(InputError::IncorrectKeyType("distinctLatitudes"));
+            };
 
-        if let FloatArray(lats) = any_message.read_key("distinctLatitudes")?.value {
-            distinct_latitudes = lats.into_iter().map(|v| v as Float).collect();
-        } else {
-            return Err(InputError::IncorrectKeyType("distinctLatitudes"));
-        }
-
-        if let FloatArray(lons) = any_message.read_key("distinctLongitudes")?.value {
-            distinct_longitudes = lons.into_iter().map(|v| v as Float).collect();
-        } else {
-            return Err(InputError::IncorrectKeyType("distinctLongitudes"));
-        }
+        let mut distinct_longitudes: Vec<Float> =
+            if let FloatArray(lons) = any_message.read_key("distinctLongitudes")?.value {
+                lons.into_iter().map(|v| v as Float).collect()
+            } else {
+                return Err(InputError::IncorrectKeyType("distinctLongitudes"));
+            };
 
         // Values array in GRIB has (0,0) point at north pole
         distinct_latitudes
@@ -240,20 +237,17 @@ impl Input {
         });
 
         // Read the shape
-        let ni;
-        let nj;
-
-        if let Int(val) = any_message.read_key("Ni")?.value {
-            ni = val as usize;
+        let ni = if let Int(val) = any_message.read_key("Ni")?.value {
+            val as usize
         } else {
             return Err(InputError::IncorrectKeyType("Ni"));
-        }
+        };
 
-        if let Int(val) = any_message.read_key("Nj")?.value {
-            nj = val as usize;
+        let nj = if let Int(val) = any_message.read_key("Nj")?.value {
+            val as usize
         } else {
             return Err(InputError::IncorrectKeyType("Nj"));
-        }
+        };
 
         Ok(((distinct_longitudes, distinct_latitudes), (ni, nj)))
     }

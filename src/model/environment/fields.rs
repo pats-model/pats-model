@@ -130,16 +130,15 @@ fn cast_lonlat_fields_coords(
     domain_edges: DomainExtent<usize>,
 ) -> LonLat<Array2<Float>> {
     let lats = distinct_lonlats.1[domain_edges.north..=domain_edges.south].to_vec();
-    let lons;
 
-    if domain_edges.west < domain_edges.east {
-        lons = distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec();
+    let lons = if domain_edges.west < domain_edges.east {
+        distinct_lonlats.0[domain_edges.west..=domain_edges.east].to_vec()
     } else {
         let left_half = &distinct_lonlats.0[domain_edges.east..];
         let right_half = &distinct_lonlats.0[..=domain_edges.west];
 
-        lons = [left_half, right_half].concat();
-    }
+        [left_half, right_half].concat()
+    };
 
     let lons = Array::from_vec(lons);
     let lats = Array::from_vec(lats);
@@ -417,7 +416,6 @@ fn compute_vertical_velocity(
 
     // thickness array doesn't have the top level, so we will copy it
     let thickness_top = thickness.slice(s![-1, .., ..]).to_owned();
-    let thickness_top = Array2::from(thickness_top);
     thickness.push(Axis(0), thickness_top.view()).unwrap();
 
     // multiply vertical motion and thickness to get velocity
