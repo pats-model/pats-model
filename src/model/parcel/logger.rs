@@ -22,8 +22,38 @@ along with Parcel Ascent Tracing System (PATS). If not, see https://www.gnu.org/
 //! (Why it is neccessary)
 
 use super::ParcelState;
-use crate::model::environment::Environment;
-use std::{io::Error, path::Path, sync::Arc};
+use crate::{
+    errors::{EnvironmentError, ParcelError},
+    model::{
+        environment::{
+            EnvFields::{Temperature, VirtualTemperature},
+            Environment,
+        },
+        vec3::Vec3,
+    },
+    Float,
+};
+use chrono::NaiveDateTime;
+use std::{path::Path, sync::Arc};
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+struct AnnotatedParcelState {
+    datetime: NaiveDateTime,
+    lon: Float,
+    lat: Float,
+    height: Float,
+    velocity: Vec3,
+    pres: Float,
+    temp: Float,
+    mxng_rto: Float,
+    satr_mxng_rto: Float,
+    vrt_temp: Float,
+    env_temp: Float,
+    env_vrt_temp: Float,
+}
 
 /// (TODO: What it is)
 ///
@@ -31,8 +61,10 @@ use std::{io::Error, path::Path, sync::Arc};
 pub(super) fn save_parcel_log(
     parcel_log: &[ParcelState],
     environment: &Arc<Environment>,
-) -> Result<(), Error> {
+) -> Result<(), ParcelError> {
     let parcel_id = construct_parcel_id(parcel_log.first().unwrap(), environment);
+
+    let parcel_log = annotate_parcel_log(parcel_log, environment)?;
 
     let out_path = format!("./output/{}.csv", parcel_id);
     let out_path = Path::new(&out_path);
@@ -43,7 +75,7 @@ pub(super) fn save_parcel_log(
         "dateTime",
         "longitude",
         "latitude",
-        "positionZ",
+        "height",
         "velocityX",
         "velocityY",
         "velocityZ",
@@ -52,18 +84,16 @@ pub(super) fn save_parcel_log(
         "mixingRatio",
         "saturationMixingRatio",
         "virtualTemperature",
+        "envTemperature",
+        "envVirtualTemperature",
     ])?;
 
     for parcel in parcel_log {
-        let (lon, lat) = environment
-            .projection
-            .inverse_project(parcel.position.x, parcel.position.y);
-
         out_file.write_record(&[
             parcel.datetime.to_string(),
-            lon.to_string(),
-            lat.to_string(),
-            parcel.position.z.to_string(),
+            parcel.lon.to_string(),
+            parcel.lat.to_string(),
+            parcel.height.to_string(),
             parcel.velocity.x.to_string(),
             parcel.velocity.y.to_string(),
             parcel.velocity.z.to_string(),
@@ -72,6 +102,8 @@ pub(super) fn save_parcel_log(
             parcel.mxng_rto.to_string(),
             parcel.satr_mxng_rto.to_string(),
             parcel.vrt_temp.to_string(),
+            parcel.env_temp.to_string(),
+            parcel.env_vrt_temp.to_string(),
         ])?;
     }
 
@@ -83,14 +115,60 @@ pub(super) fn save_parcel_log(
 /// (TODO: What it is)
 ///
 /// (Why it is neccessary)
+fn annotate_parcel_log(
+    parcel_log: &[ParcelState],
+    environment: &Arc<Environment>,
+) -> Result<Vec<AnnotatedParcelState>, EnvironmentError> {
+    let mut result_log = Vec::<AnnotatedParcelState>::with_capacity(parcel_log.len());
+
+    for parcel in parcel_log {
+        let (lon, lat) = environment
+            .projection
+            .inverse_project(parcel.position.x, parcel.position.y);
+
+        let env_temp = environment.get_field_value(
+            parcel.position.x,
+            parcel.position.y,
+            parcel.position.z,
+            Temperature,
+        )?;
+
+        let env_vrt_temp = environment.get_field_value(
+            parcel.position.x,
+            parcel.position.y,
+            parcel.position.z,
+            VirtualTemperature,
+        )?;
+
+        result_log.push(AnnotatedParcelState {
+            datetime: parcel.datetime,
+            lon,
+            lat,
+            height: parcel.position.z,
+            velocity: parcel.velocity,
+            pres: parcel.pres,
+            temp: parcel.temp,
+            mxng_rto: parcel.mxng_rto,
+            satr_mxng_rto: parcel.satr_mxng_rto,
+            vrt_temp: parcel.vrt_temp,
+            env_temp,
+            env_vrt_temp,
+        });
+    }
+
+    Ok(result_log)
+}
+
+/// (TODO: What it is)
+///
+/// (Why it is neccessary)
 fn construct_parcel_id(initial_state: &ParcelState, environment: &Arc<Environment>) -> String {
     let time_stamp = initial_state.datetime.format("%Y-%m-%dT%H%M%S").to_string();
-    let (lon, lat) = environment.projection.inverse_project(initial_state.position.x, initial_state.position.y);
+    let (lon, lat) = environment
+        .projection
+        .inverse_project(initial_state.position.x, initial_state.position.y);
 
-    let position_stamp = format!(
-        "N{}_E{}",
-        lon as f32, lat as f32
-    );
+    let position_stamp = format!("N{:.4}_E{:.4}", lon, lat);
 
     format!("parcel_{}_{}", position_stamp, time_stamp)
 }

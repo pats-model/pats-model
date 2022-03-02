@@ -48,6 +48,7 @@ struct DomainExtent<T> {
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum EnvFields {
     Pressure,
+    Temperature,
     VirtualTemperature,
     UWind,
     VWind,

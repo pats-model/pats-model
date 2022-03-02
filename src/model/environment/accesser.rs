@@ -122,6 +122,7 @@ impl Environment {
 
         let field = match field {
             EnvFields::Pressure => self.fields.pressure.view(),
+            EnvFields::Temperature => self.fields.temperature.view(),
             EnvFields::VirtualTemperature => self.fields.virtual_temp.view(),
             EnvFields::UWind => self.fields.u_wind.view(),
             EnvFields::VWind => self.fields.v_wind.view(),
