@@ -126,7 +126,7 @@ impl ConvectiveParams {
     /// (Why it is neccessary)
     fn update_levels(&mut self, parcel_log: &[ParcelState], env_vrt_tmp: &[Float]) {
         // searched levels are subsequent and interdependent, so we look for them in loops
-        // iterating from log beginning so from ascent bottom
+        // iterating from log beginning, thus from ascent bottom
         let mut ccl_index = 0;
 
         for (i, point) in parcel_log.iter().enumerate() {
@@ -155,14 +155,20 @@ impl ConvectiveParams {
         }
 
         if self.lfc.is_some() {
+            let mut negative_bouyancy_region = false;
+
             // start checking from level after LFC for rare case when virtual temperatures are equal
             for i in (lfc_index + 1)..parcel_log.len() {
                 let point = parcel_log[i];
 
-                // first time this is true is LFC
-                if point.vrt_temp <= env_vrt_tmp[i] {
+                if negative_bouyancy_region && point.vrt_temp > env_vrt_tmp[i] {
+                    negative_bouyancy_region = false;
+                }
+
+                // level at which this is true is EL
+                if !negative_bouyancy_region && point.vrt_temp <= env_vrt_tmp[i] {
                     self.el = Some(point.position.z);
-                    break;
+                    negative_bouyancy_region = true;
                 }
             }
         }
@@ -204,6 +210,7 @@ impl ConvectiveParams {
             for i in (lfc_id + 1)..parcel_log.len() {
                 let point = parcel_log[i];
 
+                // this is a trapezium rule of integral of bouyancy force, effectively an average
                 let y_1 = (point.vrt_temp - env_vrt_tmp[i]) / env_vrt_tmp[i];
                 let y_0 = (parcel_log[i - 1].vrt_temp - env_vrt_tmp[i - 1]) / env_vrt_tmp[i - 1];
 
