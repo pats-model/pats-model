@@ -153,7 +153,7 @@ impl Environment {
 
                     match err {
                         SearchError::OutOfBounds => {
-                            if z < self.fields.height[[0, *x_index, *y_index]] {
+                            if z <= self.fields.height[[0, *x_index, *y_index]] {
                                 Ok(0)
                             } else {
                                 Err(err)
